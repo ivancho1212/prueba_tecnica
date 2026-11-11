@@ -88,11 +88,27 @@ def L(f, ts, v, ver=1, archivo="a.csv", orden=0):
     return consumos.Lectura(f, ts, None if v is None else Decimal(v), ver, None, "kWh", archivo, orden, orden, str(v))
 
 
-def test_b3_mayor_version_gana_y_cuenta_correccion():
+def test_b3_mayor_version_gana_y_cuenta_correccion_no_conflicto():
     t = datetime(2026, 4, 1)
     dd = consumos.deduplicar([L("CO1", t, "10", 1, "consumos_2026-04.csv", 1), L("CO1", t, "12", 2, "consumos_2026-04_correccion.csv", 2)])
     assert [g.valor_kwh for g in dd.ganadoras] == [Decimal("12")]
-    assert (dd.duplicados_exactos, dd.duplicados_conflictivos, dd.correcciones_tardias) == (0, 1, 1)
+    assert (dd.duplicados_exactos, dd.duplicados_conflictivos, dd.correcciones_tardias) == (0, 0, 1)
+    assert [(l.version, regla) for l, regla in dd.descartadas] == [(1, "B3_SUPERADA_POR_VERSION")]
+
+
+def test_b3_version_mayor_gana_aunque_llegue_antes_en_orden_de_archivo():
+    t = datetime(2026, 4, 1)
+    dd = consumos.deduplicar([L("CO1", t, "12", 2, "a.csv", 1), L("CO1", t, "10", 1, "b.csv", 2)])
+    assert dd.ganadoras[0].valor_kwh == Decimal("12") and dd.correcciones_tardias == 1 and dd.duplicados_conflictivos == 0
+
+
+def test_b3_tres_filas_mezcla_version_y_empate():
+    t = datetime(2026, 4, 1)
+    dd = consumos.deduplicar([L("CO1", t, "10", 1, orden=1), L("CO1", t, "11", 1, orden=2), L("CO1", t, "12", 2, orden=3)])
+    # ganadora v2; la v1 de valor 10 y la v1 de valor 11 son ambas superadas por versión, no conflictos
+    assert dd.ganadoras[0].valor_kwh == Decimal("12")
+    assert (dd.duplicados_exactos, dd.duplicados_conflictivos, dd.correcciones_tardias) == (0, 0, 1)
+    assert {r for _, r in dd.descartadas} == {"B3_SUPERADA_POR_VERSION"}
 
 
 def test_b3_empate_gana_la_ultima_en_orden_de_archivo():

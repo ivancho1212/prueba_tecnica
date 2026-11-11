@@ -306,7 +306,8 @@ Reglas al tocarlo:
 - El `dq_report` es función pura de los archivos presentes: se re-parsea todo
   en cada corrida; a la base solo van filas de archivos nuevos/cambiados (hash).
 - Conteos de referencia con los datos del paquete (si cambian, algo se rompió):
-  filas_leidas 115.340 · exactos 180 · conflictivos 420 · negativos 90 ·
+  filas_leidas 115.340 · exactos 180 · conflictivos 120 (empate de versión;
+  las 300 v1 reemplazadas van como `B3_SUPERADA_POR_VERSION`) · negativos 90 ·
   nulos 60 · outliers 45 · MWh 400 · correcciones 300 · huecos 655 ·
   PII texto libre 25 · consumo_mensual 160 filas · cargadas 114.545 ·
   facturas 160 cargadas · fronteras_huerfanas_facturacion 12.

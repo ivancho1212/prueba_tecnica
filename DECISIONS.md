@@ -199,11 +199,20 @@ Opción 2, con estas reglas concretas:
   inválido se descarta por B4 y deja hueco (B5). En los datos entregados ningún
   grupo duplicado contiene inválidas, así que ambos órdenes dan los mismos
   números; se documenta para el caso general.
-- `duplicados_conflictivos` cuenta **toda** fila sobrante con valor o versión
-  distinta a la ganadora, incluidas las 300 lecturas v1 que la corrección v2
-  reemplaza (son, literalmente, "misma `(frontera_id, timestamp)`, pierde por
-  B3"). `correcciones_tardias_aplicadas` cuenta las claves cuya ganadora
-  superó a una versión menor (300).
+- **Clasificación de sobrantes** (revisada el 2026-11-11, antes 420 conflictivos):
+  `duplicados_exactos` = misma versión y mismo valor que la ganadora (180);
+  `duplicados_conflictivos` = misma versión y valor distinto, es decir el
+  empate real que exige la regla de desempate por orden de archivo (120);
+  una fila con **versión menor** que la ganadora es un **reemplazo por dato
+  tardío**, va a cuarentena con la regla `B3_SUPERADA_POR_VERSION` y se cuenta
+  solo en `correcciones_tardias_aplicadas` (300), no en conflictivos.
+  Razones: el enunciado trata la corrección como "relecturas que reemplazan",
+  no como duplicados; los datos traen exactamente tres fenómenos (copias,
+  empates, versiones) y el reporte tiene exactamente tres llaves; un empate es
+  lo único que necesita desempate, una versión mayor ya tiene ganador; y
+  contar las 300 en conflictivos haría redundante la llave de correcciones.
+  Hay ambigüedad real en "filas sobrantes descartadas"; se eligió la lectura
+  que deja cada métrica midiendo una sola cosa.
 - **Huecos** sobre la rejilla completa: todas las fronteras del maestro × todos
   los meses detectados en los archivos presentes, días del mes × 24.
 - **Un archivo = una transacción.** Cabecera irreconocible ⇒ `ARCHIVO_CORRUPTO`,

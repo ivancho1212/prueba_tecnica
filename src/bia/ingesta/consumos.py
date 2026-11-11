@@ -191,12 +191,20 @@ class ResultadoDedupe:
     duplicados_exactos: int
     duplicados_conflictivos: int
     correcciones_tardias: int
-    descartadas: list[tuple[Lectura, str]]   # (lectura, 'DUPLICADO_EXACTO'|'DUPLICADO_CONFLICTIVO')
+    descartadas: list[tuple[Lectura, str]]   # (lectura, DUPLICADO_EXACTO | DUPLICADO_CONFLICTIVO | B3_SUPERADA_POR_VERSION)
 
 
 def deduplicar(lecturas: list[Lectura]) -> ResultadoDedupe:
     """Por (frontera_id, ts_local): gana mayor version_lectura; en empate, la
-    última en orden de llegada (archivos en orden lexicográfico, luego fila)."""
+    última en orden de llegada (archivos en orden lexicográfico, luego fila).
+
+    Clasificación de las filas sobrantes (ADR-005):
+    - misma versión y mismo valor que la ganadora  → DUPLICADO_EXACTO
+    - misma versión y valor distinto (empate real)  → DUPLICADO_CONFLICTIVO
+    - versión menor que la ganadora                 → B3_SUPERADA_POR_VERSION:
+      es un reemplazo (dato tardío), se cuenta en correcciones_tardias y NO en
+      duplicados_conflictivos.
+    """
     grupos: dict[tuple[str, datetime], list[Lectura]] = defaultdict(list)
     for l in lecturas:
         grupos[l.clave].append(l)
@@ -212,7 +220,9 @@ def deduplicar(lecturas: list[Lectura]) -> ResultadoDedupe:
         for l in grupo:
             if l is ganadora:
                 continue
-            if l.valor_kwh == ganadora.valor_kwh and l.version == ganadora.version:
+            if l.version < ganadora.version:
+                descartadas.append((l, "B3_SUPERADA_POR_VERSION"))
+            elif l.valor_kwh == ganadora.valor_kwh:
                 exactos += 1
                 descartadas.append((l, "DUPLICADO_EXACTO"))
             else:

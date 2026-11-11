@@ -181,7 +181,8 @@ def main() -> int:
         for l, regla in dd.descartadas + va.descartadas:
             rechazos_por_archivo.setdefault(l.archivo, []).append(consumos.Rechazo(
                 l.archivo, l.fila, regla, {"DUPLICADO_EXACTO": "copia exacta de otra lectura",
-                                           "DUPLICADO_CONFLICTIVO": "misma clave, valor distinto; perdió por B3",
+                                           "DUPLICADO_CONFLICTIVO": "misma clave y versión, valor distinto; perdió por orden de archivo (B3)",
+                                           "B3_SUPERADA_POR_VERSION": "reemplazada por una lectura de mayor version_lectura (dato tardío)",
                                            "B4_NULO": "valor nulo o vacío", "B4_NEGATIVO": "valor negativo",
                                            "B4_OUTLIER": "valor > 1.000.000 kWh"}[regla],
                 f"{l.frontera_id}|{l.ts_local.isoformat()}",

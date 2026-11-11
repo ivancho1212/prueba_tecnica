@@ -106,8 +106,10 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
 - [x] B5: 655 huecos totales = 115.200 horas esperadas − 114.545 válidas ✔.
 - [x] `out/consumo_mensual.csv`: 160 filas (40 fronteras × 4 meses), 3 decimales.
 - [x] `out/dq_report.json` con las 12 llaves. Correcciones **300** ✔, MWh **400** ✔,
-      duplicados 180 exactos / 420 conflictivos (incluye las 300 v1 reemplazadas,
-      ver ADR-005). `fronteras_huerfanas_facturacion` **12** ✔.
+      duplicados 180 exactos / **120** conflictivos (empate de versión); las 300
+      v1 reemplazadas por la corrección van a cuarentena como
+      `B3_SUPERADA_POR_VERSION` y solo cuentan en correcciones (ADR-005, revisado).
+      `fronteras_huerfanas_facturacion` **12** ✔.
 
 ### 2.2 Clientes y facturación (B6, B7, C2)
 - [x] `clientes.csv` latin-1 con `csv`, SQL parametrizado, `TEXT`; 40/40 cargadas
@@ -215,4 +217,5 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | 1.1 Entorno y contrato: setup/up/down/clean, compose endurecido, deps auditadas, ADR-001..003 | `3509c47` |
 | 2026-11-11 | 1.2 + 1.3 Modelo SQL, roles/grants, bitácora append-only, vistas, clasificación viva, bootstrap_db, 43 tests | `331f014` |
 | 2026-11-11 | 1.4 + 1.5 Pipeline batch completo (maestros con cifrado/PII, consumos B1–B5, cuarentena, bitácora, reportes, logs JSON), idempotencia y robustez verificadas, 59 tests, ADR-005 | `1878ff5` |
-| 2026-11-11 | 2.2 Facturación y B6: 160 facturas, 12 huérfanas, dq=12, idempotente, 64 tests | (este commit) |
+| 2026-11-11 | 2.2 Facturación y B6: 160 facturas, 12 huérfanas, dq=12, idempotente, 64 tests | `c63035d` |
+| 2026-11-11 | B3 revisado: 120 conflictivos (empate de versión), 300 reemplazos por versión como `B3_SUPERADA_POR_VERSION`; ADR-005 actualizado; test B6 sin aserción probabilística; 66 tests | (este commit) |
