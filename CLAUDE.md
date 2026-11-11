@@ -294,10 +294,11 @@ src/bia/
   logging_json.py    logger JSON con filtro de PII (campos clasificados + regex)
   db.py              conexión psycopg2 + transacción
   reportes.py        consumo_mensual.csv, dq_report.json (12 llaves), metrics.json
-  pipeline.py        orquestador de `make run` (maestros → consumos → reportes)
+  pipeline.py        orquestador de `make run` (maestros → consumos → facturación → reportes)
   ingesta/archivos.py  descubrimiento (glob, orden lexicográfico, sha256), detección de formato
   ingesta/consumos.py  parseo por fila, B1 tz, B2 unidades, B3 dedupe, B4 inválidos, B5 huecos
   ingesta/maestros.py  clientes (cifra/HMAC/enmascara según clasificación), fronteras, límites
+  ingesta/facturacion.py JSON mensual: B6 huérfanas a cuarentena, cliente.nit/email cifrados + HMAC
   ingesta/carga.py     upserts idempotentes como rol_ingesta, cuarentena, control_archivos, bitácora
 ```
 
@@ -307,7 +308,13 @@ Reglas al tocarlo:
 - Conteos de referencia con los datos del paquete (si cambian, algo se rompió):
   filas_leidas 115.340 · exactos 180 · conflictivos 420 · negativos 90 ·
   nulos 60 · outliers 45 · MWh 400 · correcciones 300 · huecos 655 ·
-  PII texto libre 25 · consumo_mensual 160 filas · cargadas 114.545.
+  PII texto libre 25 · consumo_mensual 160 filas · cargadas 114.545 ·
+  facturas 160 cargadas · fronteras_huerfanas_facturacion 12.
+- `consumo_facturado_kwh` de las 160 facturas coincide con `consumo_mensual.csv`
+  (dif. ≤ 0,005 kWh por redondeo): es la validación externa de B1–B5. Si deja
+  de coincidir, una regla se rompió.
+- `nit_coincide_maestro` existe en el DDL pero **no se calcula** (queda NULL):
+  estructura preparada, sin lógica, por decisión del usuario.
 - En tablas con PII no usar `ON CONFLICT DO UPDATE` (requiere SELECT sobre
   `EXCLUDED.*`): usar UPDATE-por-hash + INSERT-si-no-existe (ver `carga.py`).
 - Nada que venga de `clientes.csv` o de facturación pasa por `log()` salvo

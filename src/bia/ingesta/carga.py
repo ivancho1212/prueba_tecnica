@@ -16,6 +16,7 @@ import psycopg2.extras
 from bia.crypto import Cifrador
 from bia.ingesta.archivos import ArchivoCrudo, Formato
 from bia.ingesta.consumos import Lectura, Rechazo
+from bia.ingesta.facturacion import FacturaNormalizada
 from bia.ingesta.maestros import ClienteNormalizado
 
 ORIGENES_CON_PII = {"clientes", "facturacion"}
@@ -183,6 +184,41 @@ class Cargador:
                 filas, page_size=500,
             )
         return len(filas)
+
+    def upsert_facturacion(self, facturas: list[FacturaNormalizada], archivo_id: int) -> int:
+        """Mismo patrón que upsert_clientes: UPDATE si cambió el hash, INSERT si no
+        existe. Evita ON CONFLICT/EXCLUDED sobre columnas cifradas que
+        rol_ingesta no puede leer, y no recifra lo que no cambió."""
+        if not facturas:
+            return 0
+        sql_update = """
+            UPDATE core.fact_facturacion SET
+                periodo = %(periodo)s, frontera_id = %(frontera_id)s,
+                consumo_facturado_kwh = %(consumo_facturado_kwh)s, tarifa_cop_kwh = %(tarifa_cop_kwh)s,
+                valor_total_cop = %(valor_total_cop)s, componentes = %(componentes)s::jsonb,
+                metodo_pago_tipo = %(metodo_pago_tipo)s, cuenta_enmascarada = %(cuenta_enmascarada)s,
+                cliente_razon_social = %(cliente_razon_social)s,
+                cliente_nit_cifrado = %(cliente_nit_cifrado)s, cliente_nit_hmac = %(cliente_nit_hmac)s,
+                cliente_email_cifrado = %(cliente_email_cifrado)s, cliente_email_hmac = %(cliente_email_hmac)s,
+                hash_fila = %(hash_fila)s, archivo_id = %(archivo_id)s, actualizado_en = now()
+            WHERE factura_id = %(factura_id)s AND hash_fila IS DISTINCT FROM %(hash_fila)s"""
+        sql_insert = """
+            INSERT INTO core.fact_facturacion (factura_id, periodo, frontera_id, consumo_facturado_kwh,
+                tarifa_cop_kwh, valor_total_cop, componentes, metodo_pago_tipo, cuenta_enmascarada,
+                cliente_razon_social, cliente_nit_cifrado, cliente_nit_hmac, cliente_email_cifrado,
+                cliente_email_hmac, hash_fila, archivo_id)
+            SELECT %(factura_id)s, %(periodo)s, %(frontera_id)s, %(consumo_facturado_kwh)s,
+                %(tarifa_cop_kwh)s, %(valor_total_cop)s, %(componentes)s::jsonb, %(metodo_pago_tipo)s,
+                %(cuenta_enmascarada)s, %(cliente_razon_social)s, %(cliente_nit_cifrado)s, %(cliente_nit_hmac)s,
+                %(cliente_email_cifrado)s, %(cliente_email_hmac)s, %(hash_fila)s, %(archivo_id)s
+            WHERE NOT EXISTS (SELECT 1 FROM core.fact_facturacion WHERE factura_id = %(factura_id)s)"""
+        with self.conn.cursor() as cur:
+            for f in facturas:
+                params = {**f.__dict__, "archivo_id": archivo_id}
+                cur.execute(sql_update, params)
+                if cur.rowcount == 0:
+                    cur.execute(sql_insert, params)
+        return len(facturas)
 
     def fronteras_en_maestro(self) -> set[str]:
         with self.conn.cursor() as cur:

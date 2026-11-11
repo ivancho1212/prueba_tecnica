@@ -107,7 +107,7 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
 - [x] `out/consumo_mensual.csv`: 160 filas (40 fronteras × 4 meses), 3 decimales.
 - [x] `out/dq_report.json` con las 12 llaves. Correcciones **300** ✔, MWh **400** ✔,
       duplicados 180 exactos / 420 conflictivos (incluye las 300 v1 reemplazadas,
-      ver ADR-005). `fronteras_huerfanas_facturacion` pendiente de 2.2.
+      ver ADR-005). `fronteras_huerfanas_facturacion` **12** ✔.
 
 ### 2.2 Clientes y facturación (B6, B7, C2)
 - [x] `clientes.csv` latin-1 con `csv`, SQL parametrizado, `TEXT`; 40/40 cargadas
@@ -115,13 +115,18 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
 - [ ] Test explícito: tras cargar `CLI0036` (inyección) la tabla de consumos
       sigue intacta.
 - [x] PII en `observaciones` enmascarada: **25** clientes ✔ (`bia/pii.py`).
-- [ ] Facturación JSON: 12 huérfanas a cuarentena; bloque `cliente` cifrado.
+- [x] Facturación JSON (`ingesta/facturacion.py`): 160 facturas en
+      `fact_facturacion`, **12** huérfanas a cuarentena con payload cifrado
+      (B6), `cliente.nit`/`email` cifrados + HMAC, `hash_fila` para no recifrar.
+      `consumo_facturado_kwh` coincide con `consumo_mensual.csv` (dif. máx.
+      0,005 kWh por redondeo a 2 decimales): validación externa de B1–B5.
 
 ### 2.3 Cifrado en reposo (C3)
 - [x] AES-256-GCM por valor + HMAC-SHA256 de NIT normalizado y correo, llaves
       derivadas con HKDF desde `.env` (`bia/crypto.py`).
-- [ ] Verificación como superusuario: ninguna columna PII legible en claro,
-      ni en clientes ni en facturación.
+- [x] Verificación como superusuario (`test_superusuario_no_ve_pii_en_claro`):
+      ningún correo ni NIT real del maestro aparece en columnas cifradas ni en
+      claro de `dim_cliente` y `fact_facturacion`; versión de cifrado 0x01.
 
 ### 2.4 Menor privilegio (C4)
 - [x] Vistas `analytics.*` sin PII (`sql/40_analytics.sql`).
@@ -209,4 +214,5 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | Punto de partida: scaffolding auditado, CLAUDE.md, plan | `b66f2f2`, `5f8126f` |
 | 2026-11-11 | 1.1 Entorno y contrato: setup/up/down/clean, compose endurecido, deps auditadas, ADR-001..003 | `3509c47` |
 | 2026-11-11 | 1.2 + 1.3 Modelo SQL, roles/grants, bitácora append-only, vistas, clasificación viva, bootstrap_db, 43 tests | `331f014` |
-| 2026-11-11 | 1.4 + 1.5 Pipeline batch completo (maestros con cifrado/PII, consumos B1–B5, cuarentena, bitácora, reportes, logs JSON), idempotencia y robustez verificadas, 59 tests, ADR-005 | (este commit) |
+| 2026-11-11 | 1.4 + 1.5 Pipeline batch completo (maestros con cifrado/PII, consumos B1–B5, cuarentena, bitácora, reportes, logs JSON), idempotencia y robustez verificadas, 59 tests, ADR-005 | `1878ff5` |
+| 2026-11-11 | 2.2 Facturación y B6: 160 facturas, 12 huérfanas, dq=12, idempotente, 64 tests | (este commit) |

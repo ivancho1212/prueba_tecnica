@@ -15,7 +15,7 @@ from pathlib import Path
 from bia import config, db, reportes
 from bia.classification import Clasificacion
 from bia.crypto import Cifrador
-from bia.ingesta import archivos, consumos, maestros
+from bia.ingesta import archivos, consumos, facturacion, maestros
 from bia.ingesta.carga import Cargador
 from bia.logging_json import configurar, log
 
@@ -234,6 +234,47 @@ def main() -> int:
                     m.update({"cargadas": len(validas), "rechazadas": len(rs), "estado": est,
                               "ya_cargado": estado.ya_cargado, "ms_carga": ms})
         crono.marcar("carga_consumos")
+
+        # ---------------------------------------------------------- facturación (B6)
+        dir_f = cfg.data_dir / "facturacion"
+        huerfanas: set[str] = set()
+        for a in archivos.descubrir(dir_f, "*.json") if dir_f.exists() else []:
+            t0 = time.monotonic()
+            estado = cargador.registrar_archivo(a, "facturacion", None)
+            res = facturacion.procesar_facturacion(a, cif, fronteras_maestro)
+            huerfanas |= res.fronteras_huerfanas
+            try:
+                cargadas = 0 if estado.ya_cargado else cargador.upsert_facturacion(res.filas, estado.archivo_id)
+                cargador.cuarentena("facturacion", a.sha256, res.rechazos)
+                est = "RECHAZADO" if not res.filas else ("OK" if not res.rechazos else "PARCIAL")
+                cargador.cerrar_archivo(estado.archivo_id, res.filas_leidas, len(res.filas), len(res.rechazos), est)
+                conn.commit()
+            except Exception as e:  # noqa: BLE001
+                conn.rollback()
+                est, cargadas = "RECHAZADO", 0
+                motivo = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
+                res.rechazos = [consumos.Rechazo(a.nombre, None, "ARCHIVO_ERROR_CARGA", motivo, None, {})]
+                try:
+                    cargador.cuarentena("facturacion", a.sha256, res.rechazos)
+                    cargador.cerrar_archivo(estado.archivo_id, res.filas_leidas, 0, 1, "RECHAZADO")
+                    conn.commit()
+                except Exception:  # noqa: BLE001
+                    conn.rollback()
+                log(logger, "archivo_error_carga", logging.ERROR, archivo=a.nombre, motivo=motivo)
+            acumular_rechazos(res.rechazos)
+            ms = int((time.monotonic() - t0) * 1000)
+            cargador.bitacora("facturacion", "archivo_procesado", "OK" if est == "OK" else ("ERROR" if est == "RECHAZADO" else "PARCIAL"),
+                              a.nombre, len(res.filas), ms, leidas=res.filas_leidas, rechazadas=len(res.rechazos),
+                              huerfanas=len(res.fronteras_huerfanas), ya_cargado=estado.ya_cargado)
+            log(logger, "facturacion_procesada", archivo=a.nombre, leidas=res.filas_leidas, validas=len(res.filas),
+                rechazadas=len(res.rechazos), huerfanas=len(res.fronteras_huerfanas), ya_cargado=estado.ya_cargado,
+                estado=est, ms=ms)
+            metrics["archivos"].append({"archivo": a.nombre, "origen": "facturacion", "leidas": res.filas_leidas,
+                                        "cargadas": len(res.filas), "rechazadas": len(res.rechazos),
+                                        "facturas_huerfanas": len(res.fronteras_huerfanas), "estado": est,
+                                        "ya_cargado": estado.ya_cargado, "ms": ms})
+        dq["fronteras_huerfanas_facturacion"] = len(huerfanas)
+        crono.marcar("facturacion")
 
         # ------------------------------------------------------------ reportes
         n_mensual = reportes.escribir_consumo_mensual(cfg.out_dir / "consumo_mensual.csv", cargador.consumo_mensual())

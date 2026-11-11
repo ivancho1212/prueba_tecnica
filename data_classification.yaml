@@ -162,6 +162,7 @@ tablas:
     cliente_email_cifrado: Restringido-PII
     cliente_email_hmac: Confidencial
     nit_coincide_maestro: Interno
+    hash_fila: Interno
     archivo_id: Interno
     actualizado_en: Interno
 

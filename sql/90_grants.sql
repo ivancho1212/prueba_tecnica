@@ -37,7 +37,7 @@ GRANT INSERT, UPDATE ON core.fact_facturacion TO rol_ingesta;
 GRANT SELECT (factura_id, periodo, frontera_id, consumo_facturado_kwh, tarifa_cop_kwh,
               valor_total_cop, componentes, metodo_pago_tipo, cuenta_enmascarada,
               cliente_razon_social, cliente_nit_hmac, cliente_email_hmac,
-              nit_coincide_maestro, archivo_id, actualizado_en)
+              nit_coincide_maestro, hash_fila, archivo_id, actualizado_en)
   ON core.fact_facturacion TO rol_ingesta;
 
 GRANT INSERT ON quarantine.registros_rechazados TO rol_ingesta;

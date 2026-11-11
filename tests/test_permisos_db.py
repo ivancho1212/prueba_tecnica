@@ -140,3 +140,47 @@ def test_roles_sin_privilegios_de_sistema(conn_su):
         assert cur.fetchall() == []
         cur.execute("SELECT has_schema_privilege('rol_analista','public','CREATE'), has_schema_privilege('rol_ingesta','public','CREATE')")
         assert cur.fetchone() == (False, False)
+
+
+# ------------------------------------------------------ cifrado en reposo (C3) ----
+def _pii_del_maestro():
+    """Correos y NIT (solo dígitos) reales de data/maestros/clientes.csv. Si el
+    archivo no está, la prueba verifica solo el formato del cifrado."""
+    import csv, io, re
+    from pathlib import Path
+    ruta = Path(__file__).resolve().parent.parent / "data" / "maestros" / "clientes.csv"
+    if not ruta.exists():
+        return set(), set()
+    filas = list(csv.DictReader(io.StringIO(ruta.read_bytes().decode("latin-1"))))
+    correos = {f["email_contacto"].strip().lower().encode() for f in filas if f.get("email_contacto")}
+    nits = {re.sub(r"\D", "", f["nit"]).encode() for f in filas if f.get("nit")}
+    return correos, nits
+
+
+def test_superusuario_no_ve_pii_en_claro(conn_su):
+    """Lo que hace quien roba un dump: leer las tablas crudas como superusuario.
+    Ninguna columna, cifrada o no, puede contener un correo o un NIT real del
+    maestro; las columnas Restringido-PII deben ser bytes con versión 0x01."""
+    correos, nits = _pii_del_maestro()
+    with conn_su.cursor() as cur:
+        cur.execute("""SELECT nit_cifrado, email_cifrado, celular_cifrado, direccion_cifrada,
+                              representante_legal_cifrado, observaciones_cifrado,
+                              razon_social, ciudad, departamento, observaciones_enmascaradas
+                         FROM core.dim_cliente""")
+        for fila in cur.fetchall():
+            cifradas = [bytes(x) for x in fila[:6] if x is not None]
+            claras = " ".join(str(x) for x in fila[6:] if x is not None).lower().encode()
+            assert all(c[:1] == b"\x01" for c in cifradas)
+            for c in cifradas + [claras]:
+                assert not any(e in c for e in correos), "correo del maestro legible"
+                assert not any(n in c for n in nits if len(n) >= 9), "NIT del maestro legible"
+        cur.execute("""SELECT cliente_nit_cifrado, cliente_email_cifrado,
+                              cliente_razon_social, metodo_pago_tipo, cuenta_enmascarada, componentes::text
+                         FROM core.fact_facturacion""")
+        for fila in cur.fetchall():
+            cifradas = [bytes(x) for x in fila[:2] if x is not None]
+            claras = " ".join(str(x) for x in fila[2:] if x is not None).lower().encode()
+            assert all(c[:1] == b"\x01" for c in cifradas)
+            for c in cifradas + [claras]:
+                assert not any(e in c for e in correos)
+                assert not any(n in c for n in nits if len(n) >= 9)

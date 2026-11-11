@@ -109,7 +109,8 @@ CREATE TABLE IF NOT EXISTS core.fact_facturacion (
   cliente_nit_hmac       bytea,
   cliente_email_cifrado  bytea,                       -- Restringido-PII
   cliente_email_hmac     bytea,
-  nit_coincide_maestro   boolean,                     -- join por HMAC, sin exponer el NIT
+  nit_coincide_maestro   boolean,                     -- preparado: join por HMAC, sin exponer el NIT (no calculado aún)
+  hash_fila              text    NOT NULL,            -- idempotencia: no recifrar si la factura no cambió
   archivo_id             bigint REFERENCES core.control_archivos(archivo_id),
   actualizado_en         timestamptz NOT NULL DEFAULT now()
 );
