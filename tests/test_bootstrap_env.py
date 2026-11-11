@@ -19,7 +19,7 @@ def _cargar(tmp: Path):
 
 def _parse(p: Path) -> dict[str, str]:
     kv = {}
-    for ln in p.read_text().splitlines():
+    for ln in p.read_text(encoding="utf-8").splitlines():
         if ln.strip() and not ln.startswith("#") and "=" in ln:
             k, v = ln.split("=", 1)
             kv[k] = v
@@ -50,5 +50,5 @@ def test_idempotente_no_pisa_llaves_existentes(tmp_path: Path):
 def test_plantilla_real_no_trae_llaves_ni_env_versionado():
     ejemplo = _parse(RAIZ / ".env.example")
     assert ejemplo["BIA_ENC_KEY"] == "" and ejemplo["BIA_HMAC_KEY"] == ""
-    gitignore = (RAIZ / ".gitignore").read_text().splitlines()
+    gitignore = (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert ".env" in gitignore

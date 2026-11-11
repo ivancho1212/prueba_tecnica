@@ -64,7 +64,6 @@ class ResultadoParseo:
     rechazos: list[Rechazo] = field(default_factory=list)
     filas_leidas: int = 0
     mwh_convertidos: int = 0
-    truncado: bool = False
 
 
 # ------------------------------------------------------------- parseo ------
@@ -118,11 +117,16 @@ def parsear_archivo(archivo: ArchivoCrudo, fmt: Formato, orden_base: int) -> Res
             campos = next(lector)
         except StopIteration:
             break
-        except csv.Error as e:  # p. ej. bytes NUL: el resto del archivo no es confiable
-            res.truncado = True
-            res.rechazos.append(Rechazo(archivo.nombre, lector.line_num, "ARCHIVO_TRUNCADO",
-                                        f"error de CSV en línea {lector.line_num}: {e}", None, {}))
-            break
+        except csv.Error as e:
+            # Python < 3.11 lanza "line contains NUL"; >= 3.11 entrega la fila y
+            # la detecta el chequeo de NUL de abajo. Ambos caminos deben dar el
+            # mismo resultado: la fila es FILA_CORRUPTA y el parser continúa (el
+            # lector reinicia su estado en cada iteración). Lo mismo para
+            # cualquier otro csv.Error de una fila (p. ej. campo > field_size_limit).
+            res.filas_leidas += 1
+            res.rechazos.append(Rechazo(archivo.nombre, lector.line_num, "FILA_CORRUPTA",
+                                        f"fila ilegible para csv en línea {lector.line_num}: {e}", None, {}))
+            continue
         fila = lector.line_num
         if not campos or all(not c.strip() for c in campos):
             continue

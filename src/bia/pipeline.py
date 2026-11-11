@@ -128,8 +128,7 @@ def main() -> int:
             leidas_total += res.filas_leidas
             dq["registros_mwh_convertidos"] += res.mwh_convertidos
             estructurales = len(res.rechazos)
-            if res.filas_leidas and (res.truncado and estructurales / max(res.filas_leidas, 1) > UMBRAL_RECHAZO_ESTRUCTURAL
-                                     or estructurales / res.filas_leidas > UMBRAL_RECHAZO_ESTRUCTURAL):
+            if res.filas_leidas and estructurales / res.filas_leidas > UMBRAL_RECHAZO_ESTRUCTURAL:
                 r = consumos.Rechazo(a.nombre, None, "ARCHIVO_CORRUPTO",
                                      f"{estructurales} de {res.filas_leidas} filas malformadas", None, {})
                 cargador.cuarentena("consumos", a.sha256, [r] + res.rechazos); acumular_rechazos([r] + res.rechazos)
