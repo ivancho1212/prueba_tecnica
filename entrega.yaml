@@ -12,7 +12,7 @@
 
 candidato:
   nombre_completo: "Iván Herrera"
-  email: "TODO"
+  email: "helpme.bog.col@gmail.com"
   horas_invertidas: 0          # se honesto, no afecta la nota
 
 # Las credenciales de abajo son EFIMERAS y SOLO para evaluacion local.
@@ -42,10 +42,10 @@ postgres:
 
 # Nombres reales (con esquema) de los objetos que creaste.
 objetos:
-  tabla_consumos: "TODO"       # p.ej. core.fact_consumo_horario
-  tabla_clientes: "TODO"       # la que contiene PII
-  vista_analytics: "TODO"      # la vista que SI puede consultar un analista
-  tabla_auditoria: "TODO"      # el log de trazabilidad append-only
+  tabla_consumos: "core.fact_consumo_horario"
+  tabla_clientes: "core.dim_cliente"          # PII cifrada (AES-GCM) + HMAC para joins
+  vista_analytics: "analytics.v_consumo_mensual"   # rol_analista solo lee el esquema analytics
+  tabla_auditoria: "audit.bitacora"          # append-only: REVOKE + trigger
 
 # Opcional: marca en true lo que NO alcanzaste a hacer. Ser explicito sobre
 # lo no hecho suma; que el evaluador lo descubra solo, resta.
