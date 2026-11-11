@@ -171,13 +171,15 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
 pasa.
 
 ### 3.1 Streaming (Parte D)
-- [ ] `make stream`: crea tópico, lanza `tools/producer.py`, consume hasta el
-      offset final con timeout de inactividad propio (< 300 s total).
-- [ ] `FRONTERA_SIN_REPORTE` (3 intervalos de 15 min, una alerta por caída,
-      `ts` del tercer intervalo; cerrar caídas abiertas al fin del día).
-- [ ] `CONSUMO_FUERA_DE_BANDA` (`kwh > max_kwh`, estricto).
-- [ ] `LECTURA_RETROACTIVA` (ts anterior al último procesado; ~5 esperadas).
-- [ ] `out/alertas.json` sin duplicados, ISO 8601 con offset.
+- [x] `make stream` (`src/bia/stream/`): crea tópico, lanza `tools/producer.py`,
+      consume hasta el offset final; inactividad 20 s y plazo 240 s (ADR-006).
+      ~2 s contra Kafka 4.3.2 local (sin Docker aquí; falta probar con Redpanda).
+- [x] `FRONTERA_SIN_REPORTE`: **6** (una por caída, `ts` del tercer intervalo,
+      caídas abiertas al cierre).
+- [x] `CONSUMO_FUERA_DE_BANDA` (`kwh > max_kwh`, estricto): **22**.
+- [x] `LECTURA_RETROACTIVA`: **5**.
+- [x] `out/alertas.json`: 33 alertas, sin duplicados, ISO 8601 con `-05:00`,
+      idéntico en corridas repetidas (deduplicación por `evento_id`).
 
 ### 3.2 Observabilidad (Parte E)
 - [x] Logger JSON una línea por evento (`bia/logging_json.py`) con doble filtro:
@@ -234,4 +236,6 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | Hito 2 (código y tests): facturación gobernada por la clasificación (C1), tests de eliminatorias 1 y 3 con datos reales contra la base, redacción honesta del append-only; 69 tests | `bdd211a`, `d18895e`, `87267cf` |
 | 2026-11-11 | `entrega.yaml`: email y los cuatro objetos reales; `make verificar` exit 0 con la base en 5432 (Postgres local sin Docker, mismo `.env`); `make test` y `make run` x2 en verde. Pendiente: `horas_invertidas` y `no_implementado` al cierre | `bf1967c` |
 | 2026-11-11 | `SECURITY.md` completo con evidencia real (commits, tests, pip-audit, comandos por rol verificados); 2.6 cerrado | `5ae4071` |
-| 2026-11-11 | `THREAT_MODEL.md`: DFD con 5 fronteras, 11 activos, 14 amenazas STRIDE con evidencia y estado real (Hito 3 marcado como no implementado), 8 riesgos aceptados; 2.7 cerrado | (este commit) |
+| 2026-11-11 | `THREAT_MODEL.md`: DFD con 5 fronteras, 11 activos, 14 amenazas STRIDE con evidencia y estado real (Hito 3 marcado como no implementado), 8 riesgos aceptados; 2.7 cerrado | `b3606f3` |
+| 2026-11-11 | Portabilidad Windows / Python < 3.11 (encoding en test, NUL como `FILA_CORRUPTA`) | `4656c74` |
+| 2026-11-11 | 3.1 Streaming: detector puro + consumidor Kafka, 33 alertas idénticas entre corridas, ADR-006, 14 tests (83 en total) | (este commit) |

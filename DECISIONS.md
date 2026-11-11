@@ -243,3 +243,59 @@ valor no cambie. Si un día el volumen hiciera caro re-parsear todo, el diseño
 admite pasar a incremental manteniendo los conteos en la base; hoy el costo es
 de ~0,6 s. Verificado en `tests/` y con un escenario de mes nuevo + archivo
 truncado con binario + archivo basura: meses previos con hash idéntico.
+
+---
+
+## ADR-006 — Streaming: leer el día y terminar en el offset final, sin grupo de consumo
+
+**Estado:** Aceptada
+**Fecha:** 2026-11-11
+
+**Contexto**
+`make stream` debe crear el tópico si no existe, alimentarlo con
+`tools/producer.py`, aplicar tres reglas de alerta exactas y **terminar solo**
+antes de 300 s. El productor particiona por `frontera_id`, así que el orden
+solo está garantizado por frontera. Kafka entrega "al menos una vez" y el
+evaluador o un desarrollador pueden correr `make stream` más de una vez sobre
+el mismo tópico.
+
+**Opciones consideradas**
+1. Consumidor con `group_id` y offsets confirmados, terminando por
+   `consumer_timeout_ms` (inactividad).
+2. Asignación manual de todas las particiones, leer desde el principio y
+   terminar al alcanzar el offset final que tenía el tópico cuando el
+   productor terminó; inactividad y plazo total solo como redes de seguridad.
+3. Leer `mediciones_stream.ndjson` directamente, sin broker.
+
+**Decisión**
+Opción 2. Además:
+- Las reglas viven en un detector puro (`src/bia/stream/alertas.py`) cuyo
+  estado es **solo por frontera**; así el resultado no depende de cómo se
+  intercalen las particiones (probado con intercalados aleatorios).
+- Deduplicación por `evento_id` antes de evaluar: una reentrega o un tópico
+  con eventos de una corrida anterior no generan `LECTURA_RETROACTIVA` falsas.
+- `FRONTERA_SIN_REPORTE` se emite cuando la frontera vuelve a reportar tras
+  un hueco de 3 o más intervalos, o al cerrar el día para las caídas abiertas
+  (incluida una frontera que nunca reporte). Una alerta por caída, en el
+  tercer intervalo ausente.
+- Un evento inválido se rechaza con motivo y **no cuenta como medición**.
+- Límites desde `limites_frontera.csv` con el mismo parser del batch.
+
+**Por qué**
+La opción 1 termina por inactividad, que es una heurística: con un productor
+lento corta antes, con uno rápido espera de más, y el grupo añade un
+rebalanceo de varios segundos. Sus offsets confirmados harían que una segunda
+corrida no leyera nada y dejara un `out/alertas.json` vacío. La opción 2 tiene
+una condición de fin exacta y una segunda corrida produce el mismo archivo.
+La opción 3 no cumple el enunciado.
+
+**Consecuencias**
+Cada `make stream` vuelve a publicar los 3.795 eventos, así que el tópico
+crece y la lectura es lineal en el número de corridas acumuladas: aceptable
+para una evaluación, no para producción (ver `THREAT_MODEL.md` §5). En esta
+máquina no hay Docker, así que `make stream` se probó contra Apache Kafka 4.3.2
+en modo KRaft (mismo protocolo que Redpanda), no contra el contenedor de
+`docker-compose.yml`: 33 alertas (22 fuera de banda, 6 sin reporte, 5
+retroactivas), sin duplicados, idénticas en corridas repetidas y con el
+tópico recién creado, en ~2 s.
+

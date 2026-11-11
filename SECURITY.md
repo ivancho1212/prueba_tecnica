@@ -216,7 +216,7 @@ Test: `test_plantilla_real_no_trae_llaves_ni_env_versionado`
 | `evento_id`, `ts` | secuencia y `clock_timestamp()` |
 | `corrida_id` | UUID de la ejecución (`make run`, bootstrap o test) |
 | `usuario_db`, `usuario_os`, `host_origen` | quién: `current_user`, usuario del SO, `inet_client_addr()` |
-| `componente`, `etapa`, `evento`, `objeto` | qué: `batch`/`bootstrap`, etapa del pipeline, evento, archivo o tabla afectada (nunca datos) |
+| `componente`, `etapa`, `evento`, `objeto` | qué: `batch`/`stream`/`bootstrap`, etapa, evento, archivo, tabla o tópico afectado (nunca datos) |
 | `filas`, `duracion_ms`, `resultado` | cuánto y con qué resultado (`OK`, `ERROR`, `PARCIAL`, `INFO`) |
 | `detalle` | `jsonb` con conteos y metadatos; prohibido PII |
 

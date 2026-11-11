@@ -2,8 +2,8 @@
 
 STRIDE aplicado a la arquitectura que está en este repositorio, no a una
 genérica. Cada amenaza nombra el componente real, el control que existe hoy,
-dónde está la evidencia y en qué estado está. Lo que pertenece al Hito 3
-(streaming, Terraform) aparece como **No implementado**, no como control.
+dónde está la evidencia y en qué estado está. Lo que todavía no existe
+(Terraform en `infra/`) aparece como **No implementado**, no como control.
 Los riesgos residuales que ya conocemos están en §4 sin maquillar.
 
 Convenciones: roles `rol_ingesta`, `rol_analista`, `rol_auditor`, superusuario
@@ -16,9 +16,9 @@ Los controles se describen en detalle en `SECURITY.md`; aquí se citan.
 
 Dentro del alcance: la ingesta batch (`make run`), el modelo en PostgreSQL,
 los tres roles, la bitácora, los artefactos `out/` y `logs/`, los secretos en
-`.env` y la infraestructura local de `docker-compose.yml`. El consumidor de
-streaming y la IaC de `infra/` se modelan como amenazas aunque todavía no
-existen, para que el Hito 3 arranque con sus controles definidos.
+`.env`, la infraestructura local de `docker-compose.yml` y el consumidor de
+streaming (`make stream`, `src/bia/stream/`). La IaC de `infra/` se modela
+como amenaza aunque todavía no existe.
 
 ```
             FRONTERA 1: entrada no confiable (archivos de terceros)
@@ -27,17 +27,17 @@ existen, para que el Hito 3 arranque con sus controles definidos.
  │   1.632 chars, comillas anidadas)   fronteras.csv  limites_frontera.csv│
  │ data/consumos/*.csv (4 formatos, duplicados, inválidos, truncados)    │
  │ data/facturacion/*.json (PII duplicada, 12 fronteras huérfanas)       │
- │ data/eventos/mediciones_stream.ndjson → tools/producer.py (Hito 3)    │
+ │ data/eventos/mediciones_stream.ndjson → tools/producer.py             │
  └───────────────┬──────────────────────────────────────┬───────────────┘
                  │ lectura con csv/json (stdlib)        │ Kafka sin auth
                  ▼                                      ▼
  ┌─────────────────────────────────────┐   ┌──────────────────────────┐
  │ src/bia/pipeline.py  (`make run`)   │   │ Redpanda  mediciones.raw │
  │  ingesta/{archivos,consumos,        │   │ 127.0.0.1:9092 (compose) │
- │  maestros,facturacion,carga}.py     │   │ consumidor: NO EXISTE    │
- │  crypto.py (AES-GCM, HMAC)          │   │ aún (`make stream` → 1)  │
+ │  maestros,facturacion,carga}.py     │   │ consumidor: bia.stream   │
+ │  crypto.py (AES-GCM, HMAC)          │   │ (`make stream`)          │
  │  pii.py, logging_json.py            │   └────────────┬─────────────┘
- │  lee data_classification.yaml       │                │ Hito 3
+ │  lee data_classification.yaml       │                │ alertas
  │  lee .env  ◄── FRONTERA 4: secretos │                ▼
  │  en el host (BIA_ENC_KEY, BIA_HMAC_KEY, contraseñas)  out/alertas.json│
  └───────┬───────────────────┬─────────┘
@@ -81,7 +81,7 @@ consumidores → PostgreSQL, mediada por roles; (3) artefactos `out/` y
 | Cuarentena (filas rechazadas con motivo) | `quarantine.registros_rechazados` | Interno / Restringido-PII en `payload_cifrado` | Pérdida de evidencia de calidad; exposición de PII si el payload estuviera en claro |
 | Artefactos de salida y logs | `out/*.json`, `out/*.csv`, `logs/pipeline.log` | Interno | Son lo que cruza la frontera 3; cualquier PII aquí es eliminatoria |
 | Código y DDL | `src/`, `sql/`, `Makefile`, `docker-compose.yml`, `.git/` | Interno | Manipulación del pipeline o de los grants en la entrega |
-| Tópico `mediciones.raw` | Redpanda en compose | Interno | Alertas falsas o ausentes en `out/alertas.json` (Hito 3) |
+| Tópico `mediciones.raw` | Redpanda en compose | Interno | Alertas falsas o ausentes en `out/alertas.json` |
 
 ---
 
@@ -103,8 +103,8 @@ evaluación local y para un despliegue real cuando difieren.
 | T9 | `requirements.txt`, `docker-compose.yml`, PyYAML ← `entrega.yaml`, `data_classification.yaml` | Elevation of privilege (cadena de suministro) | El scaffolding traía `requests 2.19.1`, `urllib3 1.24.1`, `Jinja2 2.11.2` y `PyYAML 5.3.1` con CVE conocidos; `PyYAML.load` sin `Loader` permite ejecución de código desde un YAML que el pipeline lee al arrancar. Imágenes `:latest` cambian bajo los pies | M | A | Dependencias no usadas eliminadas; `PyYAML 6.0.3` y **siempre** `yaml.safe_load`; todo pineado; `pip-audit 2.10.1` limpio con evidencia; imágenes `postgres:16.9-alpine` y `redpandadata/redpanda:v26.2.6` fijas, `no-new-privileges` en ambos contenedores | **Sí** — `requirements.txt`, `docs/evidencias/pip_audit_heredado_osv.txt` (48 avisos en los cuatro paquetes heredados, con IDs), `docs/evidencias/pip_audit_actual.txt` (`No known vulnerabilities found`), `make audit`, `docker-compose.yml` | A.8.8 Gestión de vulnerabilidades técnicas; A.5.21 Seguridad en la cadena de suministro TIC; A.8.19 Instalación de software en sistemas en producción |
 | T10 | `config/pipeline.yaml` (heredado), `docker-compose.yml`, `.git/` | Information disclosure | Credenciales de MinIO, contraseña de Postgres, una "llave maestra" y un webhook de Slack venían en claro en el scaffolding; `postgres/postgres` y los defaults de MinIO en compose. Entregar el zip con `.git/` los publicaría para siempre (eliminatoria 2) | A (venían en el paquete) | A | Valores redactados antes del primer commit (`b66f2f2`): no están en ningún punto del historial; `config/pipeline.yaml` eliminado en `3509c47`; MinIO eliminado (ADR-001); compose exige cada credencial con `${VAR:?}`; `.env` ignorado por git; `config.cargar()` no imprime secretos | **Sí** — `git log --all -p` sin los valores (verificado); `SECURITY.md` §5; `tests/test_bootstrap_env.py` | A.5.17 Información de autenticación; A.8.4 Acceso al código fuente; A.8.9 |
 | T11 | PostgreSQL en `127.0.0.1:5432` ↔ cualquier proceso del host | Spoofing | Un proceso local se conecta como `rol_ingesta` o `bia_admin` con las credenciales efímeras de `entrega.yaml`, que son públicas por requisito del enunciado, y carga datos falsos o lee la bitácora | M en evaluación / A si se reutilizaran en otro entorno | M | Puerto publicado solo en `127.0.0.1`; `scram-sha-256` para conexiones locales y de red (`POSTGRES_INITDB_ARGS`); roles sin atributos de sistema y con `statement_timeout`; contraseñas inyectadas por `set_config`, no en el DDL; credenciales declaradas efímeras y exclusivas de evaluación (ADR-002) | **Parcial** — `docker-compose.yml`, `sql/00_roles.sql`, `scripts/bootstrap_db.py`; `tests/test_permisos_db.py::test_roles_sin_privilegios_de_sistema`. Parcial porque las contraseñas son conocidas por diseño (§4) | A.8.5 Autenticación segura; A.5.16 Gestión de identidad; A.8.20 Seguridad de redes |
-| T12 | Redpanda `mediciones.raw` ← `tools/producer.py` / consumidor de `make stream` | Spoofing / Tampering | Cualquier proceso con acceso a `localhost:9092` publica eventos inventados o reordenados: alertas `CONSUMO_FUERA_DE_BANDA` falsas, `FRONTERA_SIN_REPORTE` ocultadas, o un `ts_medicion` manipulado. El tópico no autentica productores ni cifra en tránsito | M | M | Hoy solo el aislamiento de compose: listener externo publicado en `127.0.0.1`, imagen pineada, `no-new-privileges`, healthcheck. **No hay consumidor todavía** (`make stream` sale con 1); no hay SASL, TLS ni ACLs; el consumidor, cuando exista, deberá validar esquema y rangos de cada evento (`limites_frontera.csv`) y tratar cada mensaje como entrada no confiable como se hace con los CSV | **No — Hito 3** — `docker-compose.yml` (aislamiento), `Makefile` (`stream` pendiente). Lo que se construya debe documentarse aquí antes de marcar nada como implementado | A.8.20 Seguridad de redes; A.8.21 Seguridad de los servicios de red; A.5.16 |
-| T13 | `make stream`, `make run` ↔ CPU/memoria/tiempo del evaluador | Denial of service | Un consumidor que nunca termina agota el timeout de 300 s y cuenta como fallo; un CSV con una fila gigantesca o un `clientes.csv` con campos de megabytes agota memoria en el parseo; una consulta lenta bloquea la corrida de 900 s | M | M | Batch: `LONGITUD_MAXIMA = 4000` por campo en maestros, umbral de rechazo estructural, `statement_timeout = 120s` por rol, parseo por filas (sin cargar el CSV en pandas). Streaming: la condición de fin (consumir hasta el offset final tras publicar, con timeout de inactividad propio) está diseñada en `docs/PLAN.md` 3.1 pero **no existe** | **Parcial** — `src/bia/ingesta/maestros.py`, `src/bia/pipeline.py` (`UMBRAL_RECHAZO_ESTRUCTURAL`), `sql/00_roles.sql`. La parte de streaming es Hito 3 | A.8.6 Gestión de la capacidad; A.8.26 |
+| T12 | Redpanda `mediciones.raw` ← `tools/producer.py` / consumidor de `make stream` | Spoofing / Tampering | Cualquier proceso con acceso a `localhost:9092` publica eventos inventados o reordenados: alertas `CONSUMO_FUERA_DE_BANDA` falsas, `FRONTERA_SIN_REPORTE` ocultadas, o un `ts_medicion` manipulado. El tópico no autentica productores ni cifra en tránsito | M | M | Aislamiento de compose: listener externo publicado solo en `127.0.0.1`, imagen pineada, `no-new-privileges`. El consumidor trata cada mensaje como entrada no confiable: JSON ilegible ⇒ `EVENTO_MALFORMADO`; evento sin `evento_id`, frontera con formato inválido o sin límites, `ts_medicion` ilegible o `kwh` no numérico ⇒ rechazado con motivo, sin contar como medición; reentregas deduplicadas por `evento_id` para que releer el tópico no fabrique `LECTURA_RETROACTIVA`. **No** hay SASL, TLS ni ACLs: un proceso local con acceso a `9092` puede publicar eventos bien formados pero falsos, y el consumidor no puede distinguirlos | **Parcial** — `src/bia/stream/alertas.py` (`_validar`, deduplicación), `src/bia/stream/consumidor.py`; `tests/test_stream_alertas.py` (`test_eventos_invalidos_se_rechazan_sin_detener_ni_contar_como_medicion`, `test_reentrega_del_mismo_evento_no_es_retroactiva`); `docker-compose.yml`. Sin autenticación del productor (§4) | A.8.20 Seguridad de redes; A.8.21 Seguridad de los servicios de red; A.5.16 |
+| T13 | `make stream`, `make run` ↔ CPU/memoria/tiempo del evaluador | Denial of service | Un consumidor que nunca termina agota el timeout de 300 s y cuenta como fallo; un CSV con una fila gigantesca o un `clientes.csv` con campos de megabytes agota memoria en el parseo; una consulta lenta bloquea la corrida de 900 s | M | M | Batch: `LONGITUD_MAXIMA = 4000` por campo en maestros, umbral de rechazo estructural, `statement_timeout = 120s` por rol, parseo por filas (sin cargar el CSV en pandas). Streaming: condición de fin explícita (lee hasta el offset final que tenía el tópico cuando el productor terminó), más fin por inactividad (20 s) y plazo total (240 s), ambos por debajo de los 300 s del contrato; asignación manual de particiones sin grupo, así que no espera rebalanceos | **Sí** — `src/bia/ingesta/maestros.py`, `src/bia/pipeline.py` (`UMBRAL_RECHAZO_ESTRUCTURAL`), `sql/00_roles.sql`, `src/bia/stream/consumidor.py` (`INACTIVIDAD_S`, `PLAZO_TOTAL_S`); `make stream` probado contra un broker Kafka local: termina en ~2 s (ADR-006) | A.8.6 Gestión de la capacidad; A.8.26 |
 | T14 | `quarantine.registros_rechazados` | Information disclosure | La cuarentena guarda la fila original para que el rechazo sea consultable; para clientes y facturación esa fila es PII completa. Un `SELECT payload` por un rol de soporte, o el analista vía una vista de calidad, la expondría | M | A | Para orígenes con PII el `payload` en claro se guarda `NULL` y la fila va a `payload_cifrado` (AES-GCM); `rol_ingesta` tiene `SELECT` solo sobre los metadatos (ni `payload` ni `payload_cifrado`); `rol_analista` no tiene acceso al esquema; la vista `analytics.v_cuarentena_resumen` agrega por regla sin payload | **Sí** — `src/bia/ingesta/carga.py` (`ORIGENES_CON_PII`), `sql/20_quarantine.sql`, `sql/90_grants.sql`, `sql/40_analytics.sql`; consulta de verificación en `SECURITY.md` §8 (clientes/facturación: 0 payloads en claro) | A.8.11; A.8.24; A.8.3 |
 
 ---
@@ -145,8 +145,8 @@ evaluación local y para un despliegue real cuando difieren.
    `usuario_os` y `host_origen`, que es lo máximo que permite un entorno
    local sin identidades individuales.
 8. **Redpanda sin autenticación ni TLS en la evaluación local** (T12). Se
-   acepta mientras el listener esté solo en `127.0.0.1`; el consumidor del
-   Hito 3 debe tratar cada evento como entrada hostil.
+   acepta mientras el listener esté solo en `127.0.0.1`. El consumidor valida
+   y deduplica cada evento, pero no puede detectar uno falso bien formado.
 
 ---
 
@@ -165,9 +165,9 @@ evaluación local y para un despliegue real cuando difieren.
   (Vault/Secrets Manager) con rotación; roles por persona o por servicio con
   `SET ROLE`, para que `usuario_db` identifique a alguien.
 - **Streaming**: SASL/SCRAM y TLS en Redpanda, ACLs por tópico (el productor
-  solo escribe, el consumidor solo lee), validación de esquema por evento,
-  idempotencia por `evento_id`, y la condición de fin explícita de `make
-  stream`.
+  solo escribe, el consumidor solo lee), firma o esquema registrado por
+  evento, y un consumidor continuo con grupo y offsets confirmados en lugar
+  del modo "leer el día y terminar" que exige `make stream`.
 - **Red**: PostgreSQL y Redpanda en una red privada; nada publicado en el
   host; el pipeline como servicio con identidad propia.
 - **Ciclo de vida**: `pip-audit` y `terraform validate` en CI en cada commit;
