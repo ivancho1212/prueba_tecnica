@@ -153,8 +153,11 @@ class Detector:
             raise EventoInvalido("FRONTERA_INVALIDA")
         if frontera not in self.limites:
             raise EventoInvalido("FRONTERA_SIN_LIMITES")
+        crudo = str(evento.get("ts_medicion")).strip()
+        if crudo[-1:] in ("Z", "z"):  # fromisoformat solo acepta "Z" desde Python 3.11
+            crudo = crudo[:-1] + "+00:00"
         try:
-            ts = datetime.fromisoformat(str(evento.get("ts_medicion")))
+            ts = datetime.fromisoformat(crudo)
         except ValueError:
             raise EventoInvalido("TS_ILEGIBLE") from None
         if ts.tzinfo is None:
