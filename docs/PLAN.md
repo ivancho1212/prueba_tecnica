@@ -152,9 +152,9 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
       documentado en ADR-004 y pendiente de reflejar en `THREAT_MODEL.md`.
 
 ### 2.6 Secretos y dependencias (C6, C7)
-- [ ] `config/pipeline.yaml` eliminado o sin ningún valor sensible; todo por
-      `.env`.
-- [ ] `pip-audit` limpio; salida guardada para `SECURITY.md`.
+- [x] `config/pipeline.yaml` eliminado (`3509c47`); todo por `.env`
+      (documentado en `SECURITY.md` §5).
+- [x] `pip-audit` limpio; evidencia en `docs/evidencias/` y `SECURITY.md` §7.
 
 ### 2.7 Tests (G)
 - [ ] Parsers de los cuatro formatos, reglas B1–B7, PII, cifrado, permisos.
@@ -190,7 +190,8 @@ pasa.
 ### 3.4 Documentación (C8, H)
 - [ ] `THREAT_MODEL.md`: ≥ 8 amenazas STRIDE sobre esta arquitectura, control,
       estado real, Anexo A ISO 27001:2022.
-- [ ] `SECURITY.md` con comandos de verificación concretos.
+- [x] `SECURITY.md` con comandos de verificación concretos (ocho secciones de
+      la plantilla; cada comando de §8 ejecutado contra la base antes de documentarlo).
 - [ ] `DECISIONS.md` ≥ 5 ADRs: modelo, MinIO, cifrado, duplicados,
       idempotencia por archivo.
 - [ ] `RUNBOOK.md`.
@@ -228,4 +229,5 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | 2.2 Facturación y B6: 160 facturas, 12 huérfanas, dq=12, idempotente, 64 tests | `c63035d` |
 | 2026-11-11 | B3 revisado: 120 conflictivos (empate de versión), 300 reemplazos por versión como `B3_SUPERADA_POR_VERSION`; ADR-005 actualizado; test B6 sin aserción probabilística; 66 tests | `0ab51f6`, `19da3cc` |
 | 2026-11-11 | Hito 2 (código y tests): facturación gobernada por la clasificación (C1), tests de eliminatorias 1 y 3 con datos reales contra la base, redacción honesta del append-only; 69 tests | `bdd211a`, `d18895e`, `87267cf` |
-| 2026-11-11 | `entrega.yaml`: email y los cuatro objetos reales; `make verificar` exit 0 con la base en 5432 (Postgres local sin Docker, mismo `.env`); `make test` y `make run` x2 en verde. Pendiente: `horas_invertidas` y `no_implementado` al cierre | (este commit) |
+| 2026-11-11 | `entrega.yaml`: email y los cuatro objetos reales; `make verificar` exit 0 con la base en 5432 (Postgres local sin Docker, mismo `.env`); `make test` y `make run` x2 en verde. Pendiente: `horas_invertidas` y `no_implementado` al cierre | `bf1967c` |
+| 2026-11-11 | `SECURITY.md` completo con evidencia real (commits, tests, pip-audit, comandos por rol verificados); 2.6 cerrado | (este commit) |
