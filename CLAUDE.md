@@ -17,6 +17,9 @@ Umbral: 65/100. La parte C (seguridad) vale 31 puntos, más que ninguna.
 ## 2. Git y cuenta
 
 - Remoto: `https://github.com/ivancho1212/prueba_tecnica` (rama de entrega: `main`).
+  El push se hace por **SSH** con el alias `github-ivan` de `~/.ssh/config`
+  (clave `id_ed25519_ivan`, cuenta `ivancho1212`); `origin` ya apunta a
+  `git@github-ivan:ivancho1212/prueba_tecnica.git`. HTTPS no tiene credenciales.
 - Identidad de los commits: **siempre la cuenta personal del usuario**
   (`Iván Herrera <info@kodamastudio.com>`), configurada en local con
   `git config user.name/user.email`. **No** usar `dev@kodamastudio.com`. Esta
