@@ -169,3 +169,68 @@ rol de aplicación que no sea superusuario y auditoría del motor. La cuarentena
 guarda el payload cifrado cuando la fuente tiene PII, así que depurar un
 rechazo de clientes exige la llave: coste asumido a cambio de no tener PII en
 claro en ninguna tabla.
+
+---
+
+## ADR-005 — Ingesta: re-parseo total, carga por archivo, B3 antes de B4, y upsert sin `EXCLUDED` en tablas con PII
+
+**Estado:** Aceptada
+**Fecha:** 2026-11-11
+
+**Contexto**
+`make run` debe ser idempotente, absorber `consumos_2026-04_correccion.csv` sin
+recargar todo, procesar lo que encuentre en `data/consumos/` (incluido un mes
+nuevo y un archivo truncado/corrupto) sin alterar meses ya cargados, y producir
+un `dq_report.json` cuyos conteos sean exactos y estables entre corridas.
+
+**Opciones consideradas**
+1. Incremental puro: parsear y cargar solo archivos nuevos; `dq_report` desde
+   la base.
+2. Re-parsear todos los archivos presentes en cada corrida (≈115 k filas,
+   <1 s), resolver B3/B4/B5 en memoria sobre el conjunto completo, y escribir
+   en Postgres solo las filas de archivos nuevos o cambiados (hash), con un
+   `ON CONFLICT` que reproduce B3 también entre archivos.
+3. Truncar y recargar todo en cada corrida.
+
+**Decisión**
+Opción 2, con estas reglas concretas:
+- **Orden B3 → B4**, literal al enunciado: "gana la lectura con mayor
+  `version_lectura`" se aplica a toda lectura, válida o no; lo que gana y es
+  inválido se descarta por B4 y deja hueco (B5). En los datos entregados ningún
+  grupo duplicado contiene inválidas, así que ambos órdenes dan los mismos
+  números; se documenta para el caso general.
+- `duplicados_conflictivos` cuenta **toda** fila sobrante con valor o versión
+  distinta a la ganadora, incluidas las 300 lecturas v1 que la corrección v2
+  reemplaza (son, literalmente, "misma `(frontera_id, timestamp)`, pierde por
+  B3"). `correcciones_tardias_aplicadas` cuenta las claves cuya ganadora
+  superó a una versión menor (300).
+- **Huecos** sobre la rejilla completa: todas las fronteras del maestro × todos
+  los meses detectados en los archivos presentes, días del mes × 24.
+- **Un archivo = una transacción.** Cabecera irreconocible ⇒ `ARCHIVO_CORRUPTO`,
+  nada se carga. Más del 50 % de filas estructuralmente malformadas ⇒ el
+  archivo entero se rechaza (cortacircuito contra basura "casi válida"). Filas
+  con bytes nulos ⇒ `FILA_CORRUPTA`. Cualquier excepción al cargar un archivo
+  ⇒ rollback de ese archivo, `ARCHIVO_ERROR_CARGA`, y la corrida sigue.
+- **Upsert sin `EXCLUDED` en `dim_cliente`/`fact_facturacion`**: Postgres exige
+  `SELECT` sobre cada columna referenciada vía `EXCLUDED`, lo que obligaría a
+  dar a `rol_ingesta` lectura de las columnas cifradas. Se usa
+  `UPDATE … WHERE hash_fila IS DISTINCT FROM` + `INSERT … WHERE NOT EXISTS`.
+
+**Por qué**
+La opción 1 hace imposible calcular duplicados y huecos entre archivos sin
+reconstruir el estado desde la base y vuelve el reporte dependiente del orden
+de llegada. La opción 3 viola "sin recargar todo" y reescribe PII en cada
+corrida. Con la opción 2 el reporte es una función pura de los archivos
+presentes (dos corridas → bytes idénticos), la base solo recibe escrituras
+cuando hay algo nuevo, y la regla B3 queda implementada dos veces coherentes:
+en memoria (dentro de la corrida) y en el `ON CONFLICT` (frente a lo que ya
+estaba en la tabla, con `COLLATE "C"` para igualar el orden de Python).
+
+**Consecuencias**
+Un reenvío idéntico de un archivo con otro nombre genera miles de
+`DUPLICADO_EXACTO` en cuarentena (así lo define el enunciado) y, por B3, el
+archivo lexicográficamente posterior gana el linaje de esas filas aunque el
+valor no cambie. Si un día el volumen hiciera caro re-parsear todo, el diseño
+admite pasar a incremental manteniendo los conteos en la base; hoy el costo es
+de ~0,6 s. Verificado en `tests/` y con un escenario de mes nuevo + archivo
+truncado con binario + archivo basura: meses previos con hash idéntico.

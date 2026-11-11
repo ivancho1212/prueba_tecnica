@@ -283,6 +283,38 @@ abiertas al final del día para `FRONTERA_SIN_REPORTE`.
   pipeline solo hace `INSERT`.
 - Tests de permisos en `tests/test_permisos_db.py` (se saltan sin base).
 
+## 10c. Código del pipeline (ya implementado)
+
+```
+src/bia/
+  config.py          Settings desde .env (no imprime credenciales)
+  classification.py  data_classification.yaml como API + verificaciones
+  crypto.py          AES-GCM + HMAC (HKDF de BIA_ENC_KEY/BIA_HMAC_KEY), normalizadores
+  pii.py             detección/enmascarado de correos, celulares, cédulas
+  logging_json.py    logger JSON con filtro de PII (campos clasificados + regex)
+  db.py              conexión psycopg2 + transacción
+  reportes.py        consumo_mensual.csv, dq_report.json (12 llaves), metrics.json
+  pipeline.py        orquestador de `make run` (maestros → consumos → reportes)
+  ingesta/archivos.py  descubrimiento (glob, orden lexicográfico, sha256), detección de formato
+  ingesta/consumos.py  parseo por fila, B1 tz, B2 unidades, B3 dedupe, B4 inválidos, B5 huecos
+  ingesta/maestros.py  clientes (cifra/HMAC/enmascara según clasificación), fronteras, límites
+  ingesta/carga.py     upserts idempotentes como rol_ingesta, cuarentena, control_archivos, bitácora
+```
+
+Reglas al tocarlo:
+- El `dq_report` es función pura de los archivos presentes: se re-parsea todo
+  en cada corrida; a la base solo van filas de archivos nuevos/cambiados (hash).
+- Conteos de referencia con los datos del paquete (si cambian, algo se rompió):
+  filas_leidas 115.340 · exactos 180 · conflictivos 420 · negativos 90 ·
+  nulos 60 · outliers 45 · MWh 400 · correcciones 300 · huecos 655 ·
+  PII texto libre 25 · consumo_mensual 160 filas · cargadas 114.545.
+- En tablas con PII no usar `ON CONFLICT DO UPDATE` (requiere SELECT sobre
+  `EXCLUDED.*`): usar UPDATE-por-hash + INSERT-si-no-existe (ver `carga.py`).
+- Nada que venga de `clientes.csv` o de facturación pasa por `log()` salvo
+  conteos e identificadores no sensibles. El payload de cuarentena de esas
+  fuentes va cifrado.
+- Para correr aquí: `PG_PORT=8432 make run` (Postgres local sin Docker).
+
 ## 11. Estructura objetivo de la entrega
 
 ```

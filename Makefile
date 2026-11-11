@@ -14,6 +14,7 @@ VENV    := .venv
 PY      := $(VENV)/bin/python
 PYTHON3 ?= python3
 COMPOSE := docker compose
+export PYTHONPATH := src
 
 .PHONY: setup up run stream test down clean verificar audit help
 
@@ -47,7 +48,8 @@ up:
 ## Pipeline batch completo. Idempotente. Produce:
 ##   out/consumo_mensual.csv  out/dq_report.json  out/metrics.json  logs/pipeline.log
 run:
-	@echo "TODO: hito 1.4 (ingesta) pendiente"; exit 1
+	@mkdir -p out logs
+	@$(PY) -m bia.pipeline
 
 ## Consumidor de streaming. Termina solo (< 300 s). Produce out/alertas.json
 stream:

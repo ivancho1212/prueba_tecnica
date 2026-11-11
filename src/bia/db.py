@@ -22,7 +22,7 @@ def conectar(dsn: str, intentos: int = 1, espera_s: float = 2.0):
             ultimo = e
             time.sleep(espera_s)
     raise RuntimeError(f"no se pudo conectar a Postgres tras {intentos} intentos: "
-                       f"{str(ultimo).strip().splitlines()[0] if ultimo else '?'}")
+                       f"{' | '.join(l.strip() for l in str(ultimo).strip().splitlines() if 'failed' in l or 'FATAL' in l) or (str(ultimo).strip().splitlines()[0] if ultimo else '?')}")
 
 
 @contextmanager

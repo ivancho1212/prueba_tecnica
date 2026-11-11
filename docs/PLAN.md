@@ -72,22 +72,25 @@ punta a punta con los cuatro meses cargados y el mismo estado en ambas corridas.
       `verificar_vistas_analista` corren en `make up`. Tests offline parsean el DDL.
 
 ### 1.4 Ingesta de consumos (Parte A)
-- [ ] Descubrimiento por glob en `data/consumos/`, orden lexicográfico.
-- [ ] Parser por archivo: detecta separador, encoding, nombres de columna,
-      coma decimal, UTC vs local, unidad.
-- [ ] Staging por archivo dentro de una transacción; archivo malo → rechazo
-      entero o filas a cuarentena; meses cargados intactos.
-- [ ] Resolución de duplicados (B3) y upsert sobre clave natural que absorbe
-      `consumos_2026-04_correccion.csv` sin recarga total.
-- [ ] Registro del archivo en la tabla de control; no reprocesar si el hash no
-      cambió.
+- [x] Descubrimiento por glob en `data/consumos/`, orden lexicográfico (`ingesta/archivos.py`).
+- [x] Parser por archivo: separador, encoding, columnas, coma decimal, UTC vs
+      local, unidad por columna o por fila (`ingesta/consumos.py`).
+- [x] Una transacción por archivo; cabecera ilegible o >50 % malformado →
+      rechazo entero; filas malas → cuarentena; error inesperado → RECHAZADO
+      sin abortar la corrida. Meses cargados intactos (verificado por hash).
+- [x] B3 en memoria + `ON CONFLICT` con la misma regla entre archivos; la
+      corrección de abril (300) se absorbe sin recarga. ADR-005.
+- [x] `core.control_archivos`: un archivo ya OK con el mismo hash no se
+      reescribe (sí se re-parsea para que el reporte sea función de los archivos).
 
 ### 1.5 Prueba de idempotencia y robustez
-- [ ] `make run` ×2 → mismos conteos en base y mismo `out/`.
-- [ ] Soltar copia renombrada de un mes (formato conocido) → se carga, lo demás
-      no cambia.
-- [ ] Soltar archivo truncado/corrupto → cuarentena o rechazo, lo demás no
-      cambia.
+- [x] `make run` ×2 → hashes por mes y `max(actualizado_en)` idénticos; `dq_report`
+      y `consumo_mensual` byte a byte iguales.
+- [x] Mes nuevo (mayo sintetizado desde enero) → 29.556 filas cargadas, meses
+      previos sin cambio.
+- [x] Archivo truncado a mitad de línea con bytes binarios → PARCIAL (filas
+      corruptas a cuarentena); archivo PNG → ARCHIVO_CORRUPTO. Meses previos con
+      hash idéntico. Segunda corrida del escenario: sin cambios.
 
 ---
 
@@ -97,25 +100,26 @@ punta a punta con los cuatro meses cargados y el mismo estado en ambas corridas.
 verificados; los tres roles no pueden hacer nada fuera de su contrato.
 
 ### 2.1 Reglas B1–B5 y salidas
-- [ ] B1 zona horaria `America/Bogota` (febrero viene en UTC).
-- [ ] B2 conversión MWh → kWh (esperado: 400 filas).
-- [ ] B4 descartes (nulo, negativo, > 1e6) contados por motivo, a cuarentena.
-- [ ] B5 huecos por frontera y mes (fila inexistente o descartada).
-- [ ] `out/consumo_mensual.csv` (3 decimales, `YYYY-MM` local).
-- [ ] `out/dq_report.json` con **todas** las llaves. Validar: 300 correcciones
-      aplicadas, 400 MWh convertidos.
+- [x] B1 zona horaria UTC−5 fijo (febrero en UTC con `Z`; también offsets).
+- [x] B2 conversión MWh → kWh: **400** ✔.
+- [x] B4: nulos 60, negativos 90, outliers 45 (coinciden con el perfilado).
+- [x] B5: 655 huecos totales = 115.200 horas esperadas − 114.545 válidas ✔.
+- [x] `out/consumo_mensual.csv`: 160 filas (40 fronteras × 4 meses), 3 decimales.
+- [x] `out/dq_report.json` con las 12 llaves. Correcciones **300** ✔, MWh **400** ✔,
+      duplicados 180 exactos / 420 conflictivos (incluye las 300 v1 reemplazadas,
+      ver ADR-005). `fronteras_huerfanas_facturacion` pendiente de 2.2.
 
 ### 2.2 Clientes y facturación (B6, B7, C2)
-- [ ] `clientes.csv` en latin-1 con módulo `csv`, consultas parametrizadas,
-      columnas `TEXT`. Ninguna fila perdida (40).
+- [x] `clientes.csv` latin-1 con `csv`, SQL parametrizado, `TEXT`; 40/40 cargadas
+      (incluida la razón social de 1.632 chars y la inyección).
 - [ ] Test explícito: tras cargar `CLI0036` (inyección) la tabla de consumos
       sigue intacta.
-- [ ] Detección y enmascarado de PII en `observaciones` (esperado: 25 clientes).
+- [x] PII en `observaciones` enmascarada: **25** clientes ✔ (`bia/pii.py`).
 - [ ] Facturación JSON: 12 huérfanas a cuarentena; bloque `cliente` cifrado.
 
 ### 2.3 Cifrado en reposo (C3)
-- [ ] Cifrado a nivel de aplicación con llave en `.env`; HMAC con sal para NIT
-      normalizado (solo dígitos) y correo.
+- [x] AES-256-GCM por valor + HMAC-SHA256 de NIT normalizado y correo, llaves
+      derivadas con HKDF desde `.env` (`bia/crypto.py`).
 - [ ] Verificación como superusuario: ninguna columna PII legible en claro,
       ni en clientes ni en facturación.
 
@@ -158,10 +162,10 @@ pasa.
 - [ ] `out/alertas.json` sin duplicados, ISO 8601 con offset.
 
 ### 3.2 Observabilidad (Parte E)
-- [ ] Logger JSON una línea por evento en `logs/pipeline.log`, con filtro que
-      rechaza valores de columnas clasificadas.
-- [ ] `out/metrics.json`: filas leídas/cargadas, rechazos por motivo, duración
-      por etapa, timestamp.
+- [x] Logger JSON una línea por evento (`bia/logging_json.py`) con doble filtro:
+      campos `en_logs: false` de la clasificación + regex de PII.
+- [x] `out/metrics.json`: filas, rechazos por motivo, duración por etapa,
+      timestamps, formato detectado por archivo.
 - [ ] Test: regex de correos/celulares/cédulas sobre `logs/` y `out/` → 0.
 
 ### 3.3 Terraform (Parte F) — primero en recortarse
@@ -204,4 +208,5 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 |---|---|---|
 | 2026-11-11 | Punto de partida: scaffolding auditado, CLAUDE.md, plan | `b66f2f2`, `5f8126f` |
 | 2026-11-11 | 1.1 Entorno y contrato: setup/up/down/clean, compose endurecido, deps auditadas, ADR-001..003 | `3509c47` |
-| 2026-11-11 | 1.2 + 1.3 Modelo SQL, roles/grants, bitácora append-only, vistas, clasificación viva, bootstrap_db, 43 tests | (este commit) |
+| 2026-11-11 | 1.2 + 1.3 Modelo SQL, roles/grants, bitácora append-only, vistas, clasificación viva, bootstrap_db, 43 tests | `331f014` |
+| 2026-11-11 | 1.4 + 1.5 Pipeline batch completo (maestros con cifrado/PII, consumos B1–B5, cuarentena, bitácora, reportes, logs JSON), idempotencia y robustez verificadas, 59 tests, ADR-005 | (este commit) |
