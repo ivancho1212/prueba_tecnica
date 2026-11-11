@@ -39,7 +39,11 @@ def test_pii_cifrada_y_hmac_normalizado():
     doc = {"periodo": "2026-02", "facturas": [factura("F-1", "CO1111111111", nit="NIT 900123456-7", email="Pagos@Empresa.com")]}
     f = procesar_facturacion(crudo(doc), CIF, MAESTRO).filas[0]
     assert f.periodo.isoformat() == "2026-02-01"
-    assert b"900" not in f.cliente_nit_cifrado and b"@" not in f.cliente_email_cifrado
+    # No comparar bytes sueltos ("@", "900"): el cifrado es aleatorio y un byte
+    # concreto aparece por azar ~16 % de las veces en 45 bytes. Se comprueba
+    # que el valor completo (crudo y normalizado) no esté en claro.
+    for claro in (b"900123456", b"9001234567", b"Pagos@Empresa.com", b"pagos@empresa.com"):
+        assert claro not in f.cliente_nit_cifrado and claro not in f.cliente_email_cifrado
     assert CIF.descifrar(f.cliente_nit_cifrado) == "NIT 900123456-7"
     assert f.cliente_nit_hmac == CIF.hmac("9001234567") and f.cliente_email_hmac == CIF.hmac("pagos@empresa.com")
     assert json.loads(f.componentes)[0]["concepto"] == "G"
