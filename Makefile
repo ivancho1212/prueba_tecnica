@@ -51,9 +51,12 @@ run:
 	@mkdir -p out logs
 	@$(PY) -m bia.pipeline
 
-## Consumidor de streaming. Termina solo (< 300 s). Produce out/alertas.json
+## Consumidor de streaming. Crea el tópico si no existe, publica con
+## tools/producer.py y consume hasta el offset final. Termina solo (< 300 s).
+## Produce out/alertas.json y añade la sección `stream` a out/metrics.json.
 stream:
-	@echo "TODO: hito 3.1 (streaming) pendiente"; exit 1
+	@mkdir -p out logs
+	@$(PY) -m bia.stream.consumidor
 
 ## Suite de pruebas. Exit 0 = todo pasó.
 test:

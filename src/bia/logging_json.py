@@ -26,7 +26,7 @@ class FiltroPII(logging.Filter):
         self.prohibidos = {c.lower() for c in campos_prohibidos}
 
     def _limpiar(self, obj: Any, clave: str | None = None) -> Any:
-        if clave and clave.lower() in self.prohibidos:
+        if clave is not None and str(clave).lower() in self.prohibidos:
             return _REDACTADO
         if isinstance(obj, dict):
             return {k: self._limpiar(v, k) for k, v in obj.items()}

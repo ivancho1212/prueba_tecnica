@@ -34,8 +34,8 @@ class EstadoArchivo:
 
 
 class Cargador:
-    def __init__(self, conn, corrida_id: uuid.UUID, cifrador: Cifrador):
-        self.conn, self.corrida, self.cif = conn, corrida_id, cifrador
+    def __init__(self, conn, corrida_id: uuid.UUID, cifrador: Cifrador, componente: str = "batch"):
+        self.conn, self.corrida, self.cif, self.componente = conn, corrida_id, cifrador, componente
 
     # ------------------------------------------------------------ bitácora --
     def bitacora(self, etapa: str, evento: str, resultado: str = "INFO", objeto: str | None = None,
@@ -44,8 +44,8 @@ class Cargador:
             cur.execute(
                 """INSERT INTO audit.bitacora (corrida_id, usuario_os, componente, etapa, evento, objeto,
                                                filas, resultado, duracion_ms, detalle)
-                   VALUES (%s, %s, 'batch', %s, %s, %s, %s, %s, %s, %s)""",
-                (self.corrida, getpass.getuser(), etapa, evento, objeto, filas, resultado, duracion_ms,
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (self.corrida, getpass.getuser(), self.componente, etapa, evento, objeto, filas, resultado, duracion_ms,
                  json.dumps(detalle, default=str)),
             )
         self.conn.commit()
