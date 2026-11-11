@@ -201,9 +201,10 @@ pasa.
       estado real, Anexo A ISO 27001:2022.
 - [x] `SECURITY.md` con comandos de verificación concretos (ocho secciones de
       la plantilla; cada comando de §8 ejecutado contra la base antes de documentarlo).
-- [ ] `DECISIONS.md` ≥ 5 ADRs: modelo, MinIO, cifrado, duplicados,
-      idempotencia por archivo.
-- [ ] `RUNBOOK.md`.
+- [x] `DECISIONS.md`: 6 ADRs (MinIO, credenciales/llaves, dependencias,
+      modelo y cifrado, ingesta/duplicados/idempotencia, streaming).
+- [x] `RUNBOOK.md`: operación normal, señales, cuatro procedimientos con
+      consultas reales (verificadas contra la base) y escalamiento.
 - [ ] `AI_USAGE.md`: prompts reales, qué se cambió, error concreto de la IA
       con archivo y línea.
 - [ ] `README.md` propio; enunciado movido a `docs/ENUNCIADO.md`.
