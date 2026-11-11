@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# Infraestructura local de la prueba tecnica.
+#
+# Procede de un PoC interno y NO ha pasado revision de seguridad.
+# Auditarlo y endurecerlo hace parte del alcance de la prueba.
+#
+# Podes modificar este archivo libremente (de hecho, se espera que lo hagas).
+# Lo unico que NO podes cambiar son los nombres de los targets del Makefile.
+# ---------------------------------------------------------------------------
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bia_pg
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_SUPERPASSWORD:?definir en .env}  # heredado: 'postgres' en claro, eliminado
+      POSTGRES_DB: bia_datos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: bia_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?definir en .env}   # heredado: default en claro, eliminado
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?definir en .env}  # heredado: default en claro, eliminado
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: bia_redpanda
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    ports:
+      - "9092:9092"
+
+volumes:
+  pgdata:
+  miniodata:

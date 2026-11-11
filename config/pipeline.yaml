@@ -1,0 +1,34 @@
+# Configuracion heredada del PoC. TODO: revisar antes de produccion.
+#
+# AUDITORIA 2026-11-11: este archivo venia con credenciales de MinIO, password
+# de Postgres, una llave maestra y un webhook de Slack EN CLARO. Los valores se
+# eliminaron antes del primer commit para no publicarlos en el historial y se
+# consideran comprometidos. El archivo completo se reemplaza por configuracion
+# via variables de entorno (ver SECURITY.md).
+pipeline:
+  nombre: ingesta_consumos
+  batch_size: 5000
+  reintentos: 3
+
+origen:
+  tipo: s3
+  endpoint: http://localhost:9000
+  bucket: raw
+  access_key: "<REDACTADO: credencial heredada en claro, eliminada antes del primer commit>"
+  secret_key: "<REDACTADO: credencial heredada en claro, eliminada antes del primer commit>"
+
+destino:
+  tipo: postgres
+  host: localhost
+  port: 5432
+  database: bia_datos
+  user: postgres
+  password: "<REDACTADO: password heredado en claro, eliminado antes del primer commit>"
+
+# Clave usada por el PoC para "cifrar" los campos sensibles.
+cifrado:
+  llave_maestra: "<REDACTADO: llave heredada en claro, eliminada antes del primer commit>"
+  algoritmo: none
+
+notificaciones:
+  slack_webhook: "<REDACTADO: webhook heredado en claro, eliminado antes del primer commit>"

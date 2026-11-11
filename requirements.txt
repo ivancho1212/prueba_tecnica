@@ -1,0 +1,8 @@
+# Dependencias heredadas del PoC. Varias estan desactualizadas.
+# Revisar y actualizar hace parte del alcance de la prueba.
+requests==2.19.1
+PyYAML==5.3.1
+urllib3==1.24.1
+Jinja2==2.11.2
+psycopg2-binary==2.9.9
+pandas==2.2.3

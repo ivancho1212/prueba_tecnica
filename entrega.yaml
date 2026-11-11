@@ -1,0 +1,52 @@
+# ===========================================================================
+# MANIFIESTO DE ENTREGA  --  OBLIGATORIO, en la raiz del zip
+#
+# El evaluador lee este archivo para saber como conectarse a tu solucion y
+# que objetos revisar. Si falta o esta mal formado, los checks de seguridad
+# no se pueden ejecutar y se califican en cero.
+#
+# Cuando termines de llenarlo, con la infra arriba:   make verificar
+# Se conecta con los tres roles y busca los objetos que nombraste. No califica
+# nada: solo te dice si el evaluador va a poder conectarse.
+# ===========================================================================
+
+candidato:
+  nombre_completo: "TODO"
+  email: "TODO"
+  horas_invertidas: 0          # se honesto, no afecta la nota
+
+# Las credenciales de abajo son EFIMERAS y SOLO para evaluacion local.
+# Deben ser las mismas que crea tu 'make up'.
+postgres:
+  host: localhost
+  port: 5432
+  database: bia_datos
+
+  # Superusuario local. Lo necesitamos para verificar el CIFRADO EN REPOSO:
+  # leer la tabla cruda es justamente lo que hace quien se roba un dump o
+  # tiene acceso de DBA. Si no lo declaras, C3 no se puede verificar.
+  superusuario:
+    usuario: "TODO"
+    password: "TODO"
+
+  roles:
+    ingesta:
+      usuario: "TODO"
+      password: "TODO"
+    analista:
+      usuario: "TODO"
+      password: "TODO"
+    auditor:
+      usuario: "TODO"
+      password: "TODO"
+
+# Nombres reales (con esquema) de los objetos que creaste.
+objetos:
+  tabla_consumos: "TODO"       # p.ej. core.fact_consumo_horario
+  tabla_clientes: "TODO"       # la que contiene PII
+  vista_analytics: "TODO"      # la vista que SI puede consultar un analista
+  tabla_auditoria: "TODO"      # el log de trazabilidad append-only
+
+# Opcional: marca en true lo que NO alcanzaste a hacer. Ser explicito sobre
+# lo no hecho suma; que el evaluador lo descubra solo, resta.
+no_implementado: []

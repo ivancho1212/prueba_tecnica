@@ -1,0 +1,30 @@
+# Secretos
+.env
+*.pem
+*.key
+
+# Entornos y caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Salidas generadas por el pipeline (el evaluador las produce en su máquina)
+out/
+logs/
+
+# Datos: inmutables y ya los tiene el evaluador (README §6)
+data/
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/.terraform.lock.hcl
+
+# Docker / sistema
+*.zip
+.DS_Store
