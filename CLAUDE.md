@@ -1,8 +1,9 @@
 # CLAUDE.md — Prueba técnica Bia Energy (Data Platform & Security Engineer)
 
 Guía permanente para cualquier agente que trabaje en este repositorio.
-Fuente de verdad: `README.md` (enunciado), `Makefile` (contrato de ejecución),
-`entrega.yaml` (manifiesto). Si algo aquí contradice al README, gana el README.
+Fuente de verdad: `docs/ENUNCIADO.md` (enunciado original, antes `README.md`),
+`Makefile` (contrato de ejecución), `entrega.yaml` (manifiesto). Si algo aquí
+contradice al enunciado, gana el enunciado. `README.md` es el de la entrega.
 
 ## 1. Qué es este proyecto
 

@@ -1,4 +1,4 @@
-# Infraestructura de referencia en AWS. NO se despliega (README, Parte F):
+# Infraestructura de referencia en AWS. NO se despliega (enunciado, Parte F):
 # se evalúa leyendo el código y con `terraform validate`.
 terraform {
   required_version = ">= 1.6"

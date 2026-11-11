@@ -16,7 +16,7 @@ __pycache__/
 out/
 logs/
 
-# Datos: inmutables y ya los tiene el evaluador (README §6)
+# Datos: inmutables y ya los tiene el evaluador (enunciado §6, docs/ENUNCIADO.md)
 data/
 
 # Terraform

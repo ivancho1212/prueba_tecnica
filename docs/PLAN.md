@@ -207,7 +207,8 @@ pasa.
       consultas reales (verificadas contra la base) y escalamiento.
 - [ ] `AI_USAGE.md`: prompts reales, qué se cambió, error concreto de la IA
       con archivo y línea.
-- [ ] `README.md` propio; enunciado movido a `docs/ENUNCIADO.md`.
+- [x] `README.md` propio (cómo correrlo, qué se hizo, qué no); enunciado movido
+      a `docs/ENUNCIADO.md` con `git mv`.
 
 ### 3.5 Cierre
 - [ ] `entrega.yaml` completo: roles, credenciales efímeras, objetos **con

@@ -6,7 +6,7 @@ garantizado **por frontera** y no entre fronteras: todo el estado del
 detector es por frontera, por eso el resultado no depende de cómo se
 intercalen las particiones.
 
-Reglas (README, Parte D), exactas:
+Reglas (enunciado, Parte D, docs/ENUNCIADO.md), exactas:
 - FRONTERA_SIN_REPORTE: 3 intervalos consecutivos de 15 min sin medición en
   la rejilla del día (96 intervalos desde 2026-06-01T00:00-05:00). Una sola
   alerta por caída; ts = el del tercer intervalo ausente. Se detecta cuando
