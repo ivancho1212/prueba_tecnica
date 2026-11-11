@@ -238,4 +238,4 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | `SECURITY.md` completo con evidencia real (commits, tests, pip-audit, comandos por rol verificados); 2.6 cerrado | `5ae4071` |
 | 2026-11-11 | `THREAT_MODEL.md`: DFD con 5 fronteras, 11 activos, 14 amenazas STRIDE con evidencia y estado real (Hito 3 marcado como no implementado), 8 riesgos aceptados; 2.7 cerrado | `b3606f3` |
 | 2026-11-11 | Portabilidad Windows / Python < 3.11 (encoding en test, NUL como `FILA_CORRUPTA`) | `4656c74` |
-| 2026-11-11 | 3.1 Streaming: detector puro + consumidor Kafka, 33 alertas idénticas entre corridas, ADR-006, 14 tests (83 en total) | (este commit) |
+| 2026-11-11 | 3.1 Streaming: detector puro + consumidor Kafka, 33 alertas idénticas entre corridas, ADR-006, 14 tests (83 en total) | `9b3949d`, `1d2a71b` |
