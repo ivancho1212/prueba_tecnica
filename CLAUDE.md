@@ -265,6 +265,8 @@ el trade-off (qué se descartó y por qué).
 
 ## 12. Cómo trabajar en este repo
 
+- **Plan de acción**: `docs/PLAN.md`. Al completar un hito, marcar su casilla,
+  anotar el commit en el registro de avance y commitear junto con el cambio.
 - **Priorizar**: 70 % bien hecho vale más que 100 % a medias. Lo que no se
   alcance se declara en `entrega.yaml → no_implementado`. Ocultarlo resta.
 - **Orden sugerido**: datos y modelo con seguridad incorporada → ingesta
