@@ -242,7 +242,7 @@ def main() -> int:
         for a in archivos.descubrir(dir_f, "*.json") if dir_f.exists() else []:
             t0 = time.monotonic()
             estado = cargador.registrar_archivo(a, "facturacion", None)
-            res = facturacion.procesar_facturacion(a, cif, fronteras_maestro)
+            res = facturacion.procesar_facturacion(a, cif, fronteras_maestro, clasif)
             huerfanas |= res.fronteras_huerfanas
             try:
                 cargadas = 0 if estado.ya_cargado else cargador.upsert_facturacion(res.filas, estado.archivo_id)

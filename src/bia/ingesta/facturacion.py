@@ -4,6 +4,8 @@ B6: una factura cuya `frontera_id` no existe en el maestro no se carga al
 modelo: va a cuarentena (payload cifrado, porque trae PII) y se reporta como
 `fronteras_huerfanas_facturacion`. El bloque `cliente` duplica PII del maestro:
 `nit` y `email_facturacion` se cifran y llevan HMAC como en `dim_cliente`.
+Qué se cifra lo dicta `data_classification.yaml` (campos_origen →
+facturacion.json), con el mismo mecanismo que `maestros.procesar_clientes`.
 """
 from __future__ import annotations
 
@@ -13,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from bia.classification import Clasificacion
 from bia.crypto import Cifrador, hash_fila, normalizar_email, normalizar_nit
 from bia.ingesta.archivos import ArchivoCrudo
 from bia.ingesta.consumos import Rechazo
@@ -57,8 +60,13 @@ def _decimal(v, campo: str) -> Decimal | None:
         raise ValueError(f"{campo} no numérico") from None
 
 
-def procesar_facturacion(archivo: ArchivoCrudo, cifrador: Cifrador, fronteras_maestro: set[str]) -> ResultadoFacturacion:
+def procesar_facturacion(archivo: ArchivoCrudo, cifrador: Cifrador, fronteras_maestro: set[str],
+                         clasif: Clasificacion) -> ResultadoFacturacion:
     res = ResultadoFacturacion()
+    # La clasificación manda (C1): los campos del JSON marcados Restringido-PII
+    # son exactamente los que se cifran; si alguien reclasifica, esto falla.
+    campos_a_cifrar = set(clasif.campos_origen_por_politica("facturacion.json", cifrado_en_reposo=True))
+    assert campos_a_cifrar == {"cliente.nit", "cliente.email_facturacion"}, campos_a_cifrar
     try:
         doc = json.loads(archivo.contenido.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as e:
