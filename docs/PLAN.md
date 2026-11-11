@@ -26,14 +26,25 @@
 punta a punta con los cuatro meses cargados y el mismo estado en ambas corridas.
 
 ### 1.1 Entorno y contrato
-- [ ] `requirements.txt` reescrito con versiones actuales auditadas
-      (psycopg, kafka-python, cryptography, pyyaml, pytest, pip-audit, …).
-- [ ] `.env` generado desde `.env.example` con credenciales efímeras aleatorias
-      (nunca versionado).
-- [ ] `docker-compose.yml` endurecido: credenciales por `.env`, healthchecks,
-      Postgres con `pg_isready`.
-- [ ] ADR: quitar MinIO (ningún dato pasa por él) o justificar su uso.
-- [ ] Targets `setup`, `up` (espera activa), `down`, `clean` implementados.
+- [x] `requirements.txt` reescrito con versiones actuales auditadas
+      (psycopg2, kafka-python, cryptography, pyyaml, dotenv, pytest, pip-audit).
+      Evidencia en `docs/evidencias/`.
+- [x] `.env` generado por `scripts/bootstrap_env.py` (credenciales de
+      evaluación fijas = `entrega.yaml`; llaves criptográficas aleatorias por
+      máquina). Ver ADR-002.
+- [x] `docker-compose.yml` endurecido: credenciales por `.env`, imágenes
+      pineadas, puertos en 127.0.0.1, healthchecks, scram-sha-256,
+      no-new-privileges.
+- [x] ADR-001: MinIO eliminado. ADR-003: dependencias mínimas y csv stdlib.
+- [x] Targets `setup`, `up` (`--wait`), `down`, `clean`, `audit`, `help`
+      implementados. `setup` probado ×2 en limpio. **`up` pendiente de probar:
+      este entorno no tiene Docker** (ver nota abajo).
+
+> **Nota de entorno (2026-11-11):** la máquina de desarrollo no tiene Docker ni
+> sudo sin contraseña. Todo lo que no depende de contenedores se prueba aquí
+> (`make setup`, `make test`, parsers). `make up`/`run`/`stream` de punta a
+> punta requieren instalar Docker (`sudo apt install docker.io docker-compose-v2`
+> y añadir el usuario al grupo `docker`) o correr en otra máquina.
 
 ### 1.2 Modelo de datos y SQL (`sql/`)
 - [ ] Esquemas: `core` (hechos/dimensiones), `quarantine` (rechazos con motivo),
@@ -181,3 +192,4 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | Fecha | Hito | Commit |
 |---|---|---|
 | 2026-11-11 | Punto de partida: scaffolding auditado, CLAUDE.md, plan | `b66f2f2`, `5f8126f` |
+| 2026-11-11 | 1.1 Entorno y contrato: setup/up/down/clean, compose endurecido, deps auditadas, ADR-001..003 | (este commit) |

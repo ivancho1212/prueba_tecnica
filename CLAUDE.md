@@ -149,9 +149,8 @@ frontera (candidatos a `LECTURA_RETROACTIVA`). El productor particiona por
 
 ### MinIO
 
-Ningún dato del paquete pasa por MinIO; solo lo usa el `config/pipeline.yaml`
-heredado. Decidir en un ADR si se usa como zona raw/cuarentena o se elimina
-del compose. No dejarlo levantado con credenciales por defecto "por si acaso".
+**Eliminado del compose (ADR-001)**: ningún dato del paquete pasa por él. La
+capa de almacenamiento de objetos se modela solo en `infra/` (Terraform).
 
 ## 6. Reglas de calidad (exactas, no interpretables)
 
@@ -240,8 +239,19 @@ abiertas al final del día para `FRONTERA_SIN_REPORTE`.
 
 ## 10. Infra y entorno local
 
-- `docker-compose.yml` es editable (se espera endurecerlo): sin credenciales
-  en claro, healthchecks, puertos parametrizados por `.env`.
+- `docker-compose.yml` ya está endurecido: credenciales por `.env` con
+  `${VAR:?}`, imágenes pineadas (`postgres:16.9-alpine`,
+  `redpandadata/redpanda:v26.2.6`), puertos solo en `127.0.0.1`, healthchecks
+  y `make up` con `--wait`. Mantener esas propiedades al modificarlo.
+- **Esta máquina de desarrollo no tiene Docker ni sudo sin contraseña.** Se
+  pueden probar `make setup`, `make test` y toda la lógica pura de Python; los
+  targets `up`/`run`/`stream` de punta a punta requieren Docker (instalación a
+  cargo del usuario) u otra máquina. No intentar instalarlo con sudo.
+- El Python del sistema no trae `pip`/`ensurepip`; `make setup` lo arranca con
+  `get-pip.py`. Usar siempre `.venv/bin/python`, nunca `python3` a secas para
+  correr código del proyecto.
+- Dependencias: solo las de `requirements.txt` (ADR-003). Antes de añadir una,
+  justificarla y correr `make audit`.
 - Los valores por defecto de host/puerto/base deben coincidir con lo declarado
   en `entrega.yaml`; `verificar_entrega.py` lee de ahí y `producer.py` lee
   `KAFKA_BOOTSTRAP`/`KAFKA_TOPIC` del entorno. No cablear puertos en el código.

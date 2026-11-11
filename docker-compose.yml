@@ -1,54 +1,64 @@
 # ---------------------------------------------------------------------------
-# Infraestructura local de la prueba tecnica.
+# Infraestructura local de la prueba técnica (endurecida).
 #
-# Procede de un PoC interno y NO ha pasado revision de seguridad.
-# Auditarlo y endurecerlo hace parte del alcance de la prueba.
-#
-# Podes modificar este archivo libremente (de hecho, se espera que lo hagas).
-# Lo unico que NO podes cambiar son los nombres de los targets del Makefile.
+# Cambios respecto al scaffolding heredado (ver SECURITY.md y DECISIONS.md):
+#   - Sin credenciales en claro: todo viene de .env (`${VAR:?}` falla si falta).
+#   - MinIO eliminado: ningún dato del paquete pasa por S3 (ADR-001).
+#   - Imágenes con versión fija, no `latest`.
+#   - Puertos publicados solo en 127.0.0.1, parametrizados.
+#   - Healthchecks reales: `make up` usa `--wait` y termina cuando están sanos.
+#   - Postgres con autenticación scram-sha-256 y sin trust.
+#   - Contenedores sin escalada de privilegios.
 # ---------------------------------------------------------------------------
+name: bia_prueba
+
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.9-alpine
     container_name: bia_pg
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${PG_SUPERPASSWORD:?definir en .env}  # heredado: 'postgres' en claro, eliminado
-      POSTGRES_DB: bia_datos
+      POSTGRES_USER: ${PG_SUPERUSER:?definir PG_SUPERUSER en .env}
+      POSTGRES_PASSWORD: ${PG_SUPERPASSWORD:?definir PG_SUPERPASSWORD en .env}
+      POSTGRES_DB: ${PG_DATABASE:-bia_datos}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     ports:
-      - "5432:5432"
+      - "${PG_BIND:-127.0.0.1}:${PG_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
-  minio:
-    image: minio/minio:latest
-    container_name: bia_minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?definir en .env}   # heredado: default en claro, eliminado
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?definir en .env}  # heredado: default en claro, eliminado
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - miniodata:/data
+    shm_size: 128m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 5s
+    restart: unless-stopped
 
   redpanda:
-    image: redpandadata/redpanda:latest
+    image: redpandadata/redpanda:v26.2.6
     container_name: bia_redpanda
     command:
-      - redpanda start
-      - --overprovisioned
-      - --smp 1
-      - --memory 512M
-      - --reserve-memory 0M
-      - --node-id 0
-      - --check=false
-      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
-      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:29092,external://localhost:${KAFKA_PORT:-9092}
     ports:
-      - "9092:9092"
+      - "127.0.0.1:${KAFKA_PORT:-9092}:9092"
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:\\s+true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
 
 volumes:
   pgdata:
-  miniodata:

@@ -1,0 +1,2 @@
+pip-audit 2.10.1 sobre el entorno nuevo (requirements.txt actual) — 2026-11-11
+No known vulnerabilities found

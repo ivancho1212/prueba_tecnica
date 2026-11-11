@@ -1,8 +1,18 @@
-# Dependencias heredadas del PoC. Varias estan desactualizadas.
-# Revisar y actualizar hace parte del alcance de la prueba.
-requests==2.19.1
-PyYAML==5.3.1
-urllib3==1.24.1
-Jinja2==2.11.2
-psycopg2-binary==2.9.9
-pandas==2.2.3
+# Dependencias del pipeline. Pineadas y auditadas con pip-audit (ver
+# docs/evidencias/ y SECURITY.md §7). Regenerar la auditoría: make audit.
+#
+# Eliminadas respecto al scaffolding heredado (no las usa ningún componente y
+# traían CVEs conocidos): requests==2.19.1, urllib3==1.24.1, Jinja2==2.11.2,
+# pandas==2.2.3. La ingesta usa el módulo csv de la stdlib para controlar
+# exactamente el parseo de entradas hostiles (B7).
+
+psycopg2-binary==2.9.13     # driver Postgres (lo requiere tools/verificar_entrega.py)
+PyYAML==6.0.3               # entrega.yaml, data_classification.yaml (siempre safe_load)
+kafka-python==3.0.13        # consumidor de streaming; tools/producer.py lo importa
+cryptography==50.0.2        # cifrado en reposo a nivel de aplicación (C3)
+python-dotenv==1.2.4        # carga de .env (C6: cero credenciales en código)
+
+# Calidad / seguridad (se instalan en el mismo venv para que `make test` y
+# `make audit` funcionen sin pasos extra)
+pytest==9.2.0
+pip-audit==2.10.1

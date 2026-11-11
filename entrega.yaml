@@ -11,7 +11,7 @@
 # ===========================================================================
 
 candidato:
-  nombre_completo: "TODO"
+  nombre_completo: "Iván Herrera"
   email: "TODO"
   horas_invertidas: 0          # se honesto, no afecta la nota
 
@@ -26,19 +26,19 @@ postgres:
   # leer la tabla cruda es justamente lo que hace quien se roba un dump o
   # tiene acceso de DBA. Si no lo declaras, C3 no se puede verificar.
   superusuario:
-    usuario: "TODO"
-    password: "TODO"
+    usuario: "bia_admin"
+    password: "ev-su-4Qm9xT2vLp8Wz"
 
   roles:
     ingesta:
-      usuario: "TODO"
-      password: "TODO"
+      usuario: "rol_ingesta"
+      password: "ev-in-7Hc3nR5bKf1Yd"
     analista:
-      usuario: "TODO"
-      password: "TODO"
+      usuario: "rol_analista"
+      password: "ev-an-2Vw8pJ6sGq4Tn"
     auditor:
-      usuario: "TODO"
-      password: "TODO"
+      usuario: "rol_auditor"
+      password: "ev-au-9Lk5mD1zXe3Rb"
 
 # Nombres reales (con esquema) de los objetos que creaste.
 objetos:
