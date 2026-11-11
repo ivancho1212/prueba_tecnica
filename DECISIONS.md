@@ -78,7 +78,8 @@ superusuario. El superusuario conoce la base; no debe conocer la llave.
 `.env.example` contiene credenciales de evaluación (explícitamente marcadas),
 lo que se documenta en `SECURITY.md` y en el threat model como riesgo aceptado
 para el entorno local. En producción estas variables vendrían de un gestor de
-secretos (el `infra/` modela KMS/Secrets Manager). Un `.env` existente nunca
+secretos (`infra/kms.tf` modela la llave en KMS; el gestor de secretos para las
+contraseñas queda fuera de `infra/`). Un `.env` existente nunca
 se sobreescribe: regenerar la llave dejaría ilegible la PII ya cifrada.
 
 ---

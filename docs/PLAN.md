@@ -191,8 +191,10 @@ pasa.
       campos mínimos de la Parte E (`tests/test_eliminatorias_db.py`).
 
 ### 3.3 Terraform (Parte F) — primero en recortarse
-- [ ] S3 cifrado + versionado, llave KMS con política, 3 roles IAM
-      equivalentes a C4. `terraform validate` pasa.
+- [x] `infra/`: 3 buckets S3 (versionado, SSE-KMS, sin acceso público, solo
+      TLS; `auditoria` con Object Lock COMPLIANCE), 2 llaves KMS con política
+      (`datos`, `pii` sin `Decrypt` para los roles), 3 roles IAM equivalentes a
+      C4. `terraform fmt` y `terraform validate` pasan (Terraform 1.17.2, aws 6.x).
 
 ### 3.4 Documentación (C8, H)
 - [x] `THREAT_MODEL.md`: 14 amenazas STRIDE sobre esta arquitectura, control,

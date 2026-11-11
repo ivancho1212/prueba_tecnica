@@ -2,8 +2,9 @@
 
 STRIDE aplicado a la arquitectura que está en este repositorio, no a una
 genérica. Cada amenaza nombra el componente real, el control que existe hoy,
-dónde está la evidencia y en qué estado está. Lo que todavía no existe
-(Terraform en `infra/`) aparece como **No implementado**, no como control.
+dónde está la evidencia y en qué estado está. Lo que solo existe como
+diseño (el Terraform de `infra/`, que no se despliega) se cita como
+mitigación de producción, nunca como control implementado.
 Los riesgos residuales que ya conocemos están en §4 sin maquillar.
 
 Convenciones: roles `rol_ingesta`, `rol_analista`, `rol_auditor`, superusuario
@@ -17,8 +18,9 @@ Los controles se describen en detalle en `SECURITY.md`; aquí se citan.
 Dentro del alcance: la ingesta batch (`make run`), el modelo en PostgreSQL,
 los tres roles, la bitácora, los artefactos `out/` y `logs/`, los secretos en
 `.env`, la infraestructura local de `docker-compose.yml` y el consumidor de
-streaming (`make stream`, `src/bia/stream/`). La IaC de `infra/` se modela
-como amenaza aunque todavía no existe.
+streaming (`make stream`, `src/bia/stream/`). `infra/` describe el
+despliegue en AWS pero no se aplica: sus controles cuentan como mitigaciones
+de producción (§5), no como implementados.
 
 ```
             FRONTERA 1: entrada no confiable (archivos de terceros)
@@ -121,8 +123,9 @@ evaluación local y para un despliegue real cuando difieren.
    (T3). Argumento: el enunciado pide una solución 100 % local sin cuenta de
    nube; un KMS real no es ejecutable por el evaluador. Se preserva lo
    esencial del control (la llave no está en la base ni en el repo, y el
-   superusuario de Postgres no la tiene) y se deja la separación física para
-   `infra/` y §5.
+   superusuario de Postgres no la tiene). La separación física está diseñada
+   en `infra/kms.tf` (llave `pii` en KMS, sin `Decrypt` para los roles de
+   operación) pero no desplegada.
 3. **Las credenciales de `bia_admin` y los roles son públicas** en
    `entrega.yaml` (T11). Argumento: el enunciado las exige para calificar C3 a
    C5; son efímeras, válidas solo para un Postgres en `127.0.0.1` y
@@ -155,9 +158,10 @@ evaluación local y para un despliegue real cuando difieren.
 - **Llaves**: envelope encryption con una llave de datos cifrada por un KMS
   (AWS KMS con política de uso restringida a la identidad del pipeline), el
   byte de versión en `crypto.py` ya permite rotar sin recifrar todo de golpe.
-  Es lo que debe modelar `infra/` (Terraform, Hito 3, solo `validate`).
+  Diseñado en `infra/kms.tf` (pasa `terraform validate`, no se despliega).
 - **Bitácora**: además del append-only en la base, enviar cada evento a un
-  destino que PostgreSQL no controle (S3 con Object Lock, o un sink de logs
+  destino que PostgreSQL no controle (S3 con Object Lock, como el bucket
+  `auditoria` de `infra/s3.tf`, o un sink de logs
   inmutable) y activar `pgaudit` para registrar DDL y cambios de triggers;
   separar la identidad DBA de la de aplicación y alertar sobre
   `ALTER TABLE ... DISABLE TRIGGER` y `session_replication_role`.
