@@ -114,8 +114,13 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
 ### 2.2 Clientes y facturación (B6, B7, C2)
 - [x] `clientes.csv` latin-1 con `csv`, SQL parametrizado, `TEXT`; 40/40 cargadas
       (incluida la razón social de 1.632 chars y la inyección).
-- [ ] Test explícito: tras cargar `CLI0036` (inyección) la tabla de consumos
-      sigue intacta.
+- [x] Test explícito (`tests/test_eliminatorias_db.py`): tras cargar el
+      `clientes.csv` real por el mismo camino que `make run`, la tabla de
+      consumos existe y tiene las mismas filas; `CLI0036` (inyección) y
+      `CLI0033` (1.632 chars) quedan en `dim_cliente` como texto. También:
+      la bitácora que lee `rol_auditor` no contiene PII real ni patrones de
+      correo/celular/cédula; y `facturacion.py` cifra lo que dicta
+      `data_classification.yaml`, no una lista fija en código.
 - [x] PII en `observaciones` enmascarada: **25** clientes ✔ (`bia/pii.py`).
 - [x] Facturación JSON (`ingesta/facturacion.py`): 160 facturas en
       `fact_facturacion`, **12** huérfanas a cuarentena con payload cifrado
@@ -141,7 +146,10 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
 - [x] `audit.bitacora`: quién (db/os/host), componente, etapa, evento, objeto,
       filas, resultado, duración, detalle jsonb sin PII.
 - [x] `REVOKE UPDATE, DELETE, TRUNCATE` incluido el dueño + triggers que abortan
-      UPDATE/DELETE/TRUNCATE incluso al superusuario (test lo comprueba).
+      UPDATE/DELETE/TRUNCATE en cualquier sesión normal, también la del
+      superusuario (test lo comprueba). Límite conocido: un superusuario con
+      capacidad administrativa puede desactivar el trigger; riesgo residual
+      documentado en ADR-004 y pendiente de reflejar en `THREAT_MODEL.md`.
 
 ### 2.6 Secretos y dependencias (C6, C7)
 - [ ] `config/pipeline.yaml` eliminado o sin ningún valor sensible; todo por
@@ -218,4 +226,5 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | 1.2 + 1.3 Modelo SQL, roles/grants, bitácora append-only, vistas, clasificación viva, bootstrap_db, 43 tests | `331f014` |
 | 2026-11-11 | 1.4 + 1.5 Pipeline batch completo (maestros con cifrado/PII, consumos B1–B5, cuarentena, bitácora, reportes, logs JSON), idempotencia y robustez verificadas, 59 tests, ADR-005 | `1878ff5` |
 | 2026-11-11 | 2.2 Facturación y B6: 160 facturas, 12 huérfanas, dq=12, idempotente, 64 tests | `c63035d` |
-| 2026-11-11 | B3 revisado: 120 conflictivos (empate de versión), 300 reemplazos por versión como `B3_SUPERADA_POR_VERSION`; ADR-005 actualizado; test B6 sin aserción probabilística; 66 tests | (este commit) |
+| 2026-11-11 | B3 revisado: 120 conflictivos (empate de versión), 300 reemplazos por versión como `B3_SUPERADA_POR_VERSION`; ADR-005 actualizado; test B6 sin aserción probabilística; 66 tests | `0ab51f6`, `19da3cc` |
+| 2026-11-11 | Hito 2 (código y tests): facturación gobernada por la clasificación (C1), tests de eliminatorias 1 y 3 con datos reales contra la base, redacción honesta del append-only; 69 tests | (este commit) |

@@ -108,8 +108,13 @@ def test_ingesta_no_puede(conn_ingesta, sql):
 
 
 # ------------------------------------------------------ append-only (C5) ----
-def test_bitacora_append_only_incluso_para_superusuario(conn_su):
-    """El superusuario ignora privilegios, pero el trigger lo detiene."""
+def test_bitacora_append_only_en_sesion_normal_de_superusuario(conn_su):
+    """El superusuario ignora los privilegios (capa 1), así que esta prueba
+    verifica la capa 2: en una sesión normal el trigger aborta UPDATE/DELETE/
+    TRUNCATE. No es inmutabilidad absoluta: un superusuario con capacidad
+    administrativa puede desactivar el trigger (ALTER TABLE ... DISABLE TRIGGER
+    o session_replication_role = replica). Riesgo residual documentado en
+    ADR-004 y en el threat model."""
     with conn_su.cursor() as cur:
         cur.execute("INSERT INTO audit.bitacora (corrida_id, componente, etapa, evento, resultado) "
                     "VALUES (gen_random_uuid(),'test','t','t','INFO') RETURNING evento_id")
