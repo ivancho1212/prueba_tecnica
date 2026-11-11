@@ -35,11 +35,13 @@ setup:
 	@mkdir -p out logs
 	@echo ">> setup OK"
 
-## Levanta Postgres y Redpanda y espera a que estén sanos (healthchecks).
+## Levanta Postgres y Redpanda, espera a que estén sanos (healthchecks) y aplica
+## sql/*.sql de forma idempotente (esquemas, tablas, roles, grants, vistas).
 ## Al terminar, 'make run' puede correr sin pasos manuales.
 up:
 	@test -f .env || $(PYTHON3) scripts/bootstrap_env.py
 	@$(COMPOSE) up -d --wait --wait-timeout 180
+	@$(PY) scripts/bootstrap_db.py
 	@echo ">> infraestructura arriba y sana"
 
 ## Pipeline batch completo. Idempotente. Produce:

@@ -243,10 +243,16 @@ abiertas al final del día para `FRONTERA_SIN_REPORTE`.
   `${VAR:?}`, imágenes pineadas (`postgres:16.9-alpine`,
   `redpandadata/redpanda:v26.2.6`), puertos solo en `127.0.0.1`, healthchecks
   y `make up` con `--wait`. Mantener esas propiedades al modificarlo.
-- **Esta máquina de desarrollo no tiene Docker ni sudo sin contraseña.** Se
-  pueden probar `make setup`, `make test` y toda la lógica pura de Python; los
-  targets `up`/`run`/`stream` de punta a punta requieren Docker (instalación a
-  cargo del usuario) u otra máquina. No intentar instalarlo con sudo.
+- **Esta máquina de desarrollo no tiene Docker ni sudo sin contraseña.** Para
+  todo lo que es Postgres usar `scripts/dev_pg_sin_docker.sh start` (Postgres
+  16.15 sin root, puerto 8432, datos en `/tmp/bia-pg16` o `$PGLOCAL_DIR`) y
+  correr con `PG_PORT=8432 ...` (el entorno pisa a `.env`). Ejemplo:
+  `PG_PORT=8432 .venv/bin/python scripts/bootstrap_db.py` y
+  `PG_PORT=8432 make test`. El streaming (Redpanda) sí requiere Docker. No
+  intentar instalar nada con sudo.
+- **El disco raíz (`/`) está casi lleno** (8 GB, <30 MB libres el 2026-11-11)
+  por directorios del usuario fuera del repo. No crear archivos grandes fuera
+  de `/tmp`; si pip o git fallan por espacio, avisar al usuario.
 - El Python del sistema no trae `pip`/`ensurepip`; `make setup` lo arranca con
   `get-pip.py`. Usar siempre `.venv/bin/python`, nunca `python3` a secas para
   correr código del proyecto.
@@ -259,6 +265,23 @@ abiertas al final del día para `FRONTERA_SIN_REPORTE`.
   local. Probar siempre con Docker local.
 - Terraform en `infra/` **no se despliega**: S3 cifrado + versionado, KMS con
   política, IAM equivalentes a C4. Debe pasar `terraform validate`.
+
+## 10b. Modelo y SQL (ya implementado)
+
+- `sql/` numerado y **100 % idempotente**; `scripts/bootstrap_db.py` lo aplica
+  en cada `make up` como superusuario y luego verifica la clasificación contra
+  `information_schema`. Si añades una columna, **clasifícala** en
+  `data_classification.yaml` o `make up` falla (a propósito).
+- Nombres de rol fijos: `rol_ingesta`, `rol_analista`, `rol_auditor`
+  (`src/bia/config.py` lo exige). Contraseñas solo por `set_config` desde `.env`.
+- Convenciones: `*_cifrado` → `bytea` AES-GCM (Restringido-PII); `*_hmac` →
+  `bytea` seudónimo para joins (Confidencial); hora en `ts_local` sin zona.
+- `rol_ingesta` tiene grants **por columna**: no puede `SELECT *` en
+  `core.dim_cliente`, `core.fact_facturacion` ni leer `payload*` de cuarentena.
+  El pipeline debe listar columnas explícitamente, nunca `SELECT *`.
+- La bitácora `audit.bitacora` es append-only por privilegios + trigger; el
+  pipeline solo hace `INSERT`.
+- Tests de permisos en `tests/test_permisos_db.py` (se saltan sin base).
 
 ## 11. Estructura objetivo de la entrega
 

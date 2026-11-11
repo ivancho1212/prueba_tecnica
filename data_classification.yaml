@@ -1,0 +1,252 @@
+# ===========================================================================
+# Clasificación de datos (C1). ARTEFACTO VIVO: src/bia/classification.py lo
+# carga y el pipeline lo consulta para decidir qué cifra, qué enmascara, qué
+# puede ir a logs y qué puede exponer la vista del analista. Al arrancar,
+# `make up` y el pipeline comparan este archivo con information_schema: una
+# columna sin clasificar detiene la corrida.
+#
+# Niveles (Ley 1581 / ISO 27001 A.5.12 Clasificación de la información):
+#   Público          puede salir de la organización sin daño.
+#   Interno          operación normal; no sale sin autorización.
+#   Confidencial     daño comercial/legal si se filtra (empresa, finanzas).
+#   Restringido-PII  dato personal o identificador de persona/empresa sujeto a
+#                    Ley 1581: cifrado en reposo, nunca en logs ni en analytics.
+# ===========================================================================
+version: 1
+actualizado: "2026-11-11"
+
+politicas:
+  Público:         { cifrado_en_reposo: false, en_logs: true,  en_vista_analista: true,  en_cuarentena_en_claro: true  }
+  Interno:         { cifrado_en_reposo: false, en_logs: true,  en_vista_analista: true,  en_cuarentena_en_claro: true  }
+  Confidencial:    { cifrado_en_reposo: false, en_logs: false, en_vista_analista: false, en_cuarentena_en_claro: true  }
+  Restringido-PII: { cifrado_en_reposo: true,  en_logs: false, en_vista_analista: false, en_cuarentena_en_claro: false }
+
+# --- Campos de los archivos crudos: gobiernan la ingesta -------------------
+campos_origen:
+  clientes.csv:
+    cliente_id:          Interno
+    razon_social:        Confidencial
+    nit:                 Restringido-PII
+    email_contacto:      Restringido-PII
+    celular_contacto:    Restringido-PII
+    direccion:           Restringido-PII
+    ciudad:              Interno
+    departamento:        Interno
+    representante_legal: Restringido-PII
+    observaciones:       Restringido-PII     # texto libre con correos, celulares y cédulas
+  fronteras.csv:
+    frontera_id: Interno
+    codigo_sic: Interno
+    cliente_id: Interno
+    mercado: Interno
+    operador_red: Interno
+    nivel_tension: Interno
+    fecha_registro: Interno
+    estado: Interno
+  limites_frontera.csv:
+    frontera_id: Interno
+    min_kwh: Interno
+    max_kwh: Interno
+  consumos.csv:
+    frontera_id: Interno
+    timestamp: Interno
+    consumo_kwh: Interno
+    unidad: Interno
+    version_lectura: Interno
+    calidad_lectura: Interno
+  facturacion.json:
+    factura_id: Interno
+    frontera_id: Interno
+    cliente.nit: Restringido-PII
+    cliente.razon_social: Confidencial
+    cliente.email_facturacion: Restringido-PII
+    consumo_facturado_kwh: Interno
+    tarifa_cop_kwh: Confidencial
+    valor_total_cop: Confidencial
+    componentes: Confidencial
+    metodo_pago.tipo: Interno
+    metodo_pago.cuenta_enmascarada: Confidencial
+  mediciones_stream.ndjson:
+    evento_id: Interno
+    frontera_id: Interno
+    ts_medicion: Interno
+    kwh: Interno
+    medidor.serial: Interno
+    medidor.firmware: Interno
+
+# --- Columnas físicas del modelo (deben coincidir 1:1 con information_schema) --
+tablas:
+  core.control_archivos:
+    archivo_id: Interno
+    nombre: Interno
+    origen: Interno
+    hash_sha256: Interno
+    tamano_bytes: Interno
+    formato_detectado: Interno
+    filas_leidas: Interno
+    filas_cargadas: Interno
+    filas_rechazadas: Interno
+    estado: Interno
+    primera_corrida: Interno
+    ultima_corrida: Interno
+    primera_vez: Interno
+    ultima_vez: Interno
+
+  core.dim_cliente:
+    cliente_id: Interno
+    razon_social: Confidencial
+    nit_cifrado: Restringido-PII
+    nit_hmac: Confidencial              # seudónimo con llave: no reversible sin BIA_HMAC_KEY
+    email_cifrado: Restringido-PII
+    email_hmac: Confidencial
+    celular_cifrado: Restringido-PII
+    direccion_cifrada: Restringido-PII
+    ciudad: Interno
+    departamento: Interno
+    representante_legal_cifrado: Restringido-PII
+    observaciones_cifrado: Restringido-PII
+    observaciones_enmascaradas: Confidencial
+    pii_en_observaciones: Interno
+    tipos_pii_observaciones: Interno
+    hash_fila: Interno
+    archivo_id: Interno
+    actualizado_en: Interno
+
+  core.dim_frontera:
+    frontera_id: Interno
+    codigo_sic: Interno
+    cliente_id: Interno
+    mercado: Interno
+    operador_red: Interno
+    nivel_tension: Interno
+    fecha_registro: Interno
+    estado: Interno
+    hash_fila: Interno
+    archivo_id: Interno
+    actualizado_en: Interno
+
+  core.limite_frontera:
+    frontera_id: Interno
+    min_kwh: Interno
+    max_kwh: Interno
+    hash_fila: Interno
+    archivo_id: Interno
+    actualizado_en: Interno
+
+  core.fact_consumo_horario:
+    frontera_id: Interno
+    ts_local: Interno
+    mes: Interno
+    consumo_kwh: Interno
+    version_lectura: Interno
+    calidad_lectura: Interno
+    unidad_origen: Interno
+    archivo_nombre: Interno
+    archivo_id: Interno
+    fila_origen: Interno
+    actualizado_en: Interno
+
+  core.fact_facturacion:
+    factura_id: Interno
+    periodo: Interno
+    frontera_id: Interno
+    consumo_facturado_kwh: Interno
+    tarifa_cop_kwh: Confidencial
+    valor_total_cop: Confidencial
+    componentes: Confidencial
+    metodo_pago_tipo: Interno
+    cuenta_enmascarada: Confidencial
+    cliente_razon_social: Confidencial
+    cliente_nit_cifrado: Restringido-PII
+    cliente_nit_hmac: Confidencial
+    cliente_email_cifrado: Restringido-PII
+    cliente_email_hmac: Confidencial
+    nit_coincide_maestro: Interno
+    archivo_id: Interno
+    actualizado_en: Interno
+
+  quarantine.registros_rechazados:
+    rechazo_id: Interno
+    corrida_id: Interno
+    origen: Interno
+    archivo_nombre: Interno
+    archivo_hash: Interno
+    fila_origen: Interno
+    regla: Interno
+    motivo: Interno
+    clave: Interno
+    payload: Confidencial               # solo filas de fuentes sin PII
+    payload_cifrado: Restringido-PII    # filas de fuentes con PII, cifradas
+    rechazado_en: Interno
+
+  audit.bitacora:
+    evento_id: Interno
+    ts: Interno
+    corrida_id: Interno
+    usuario_db: Interno
+    usuario_os: Interno
+    host_origen: Interno
+    componente: Interno
+    etapa: Interno
+    evento: Interno
+    objeto: Interno
+    filas: Interno
+    resultado: Interno
+    duracion_ms: Interno
+    detalle: Interno
+
+  # Vistas del analista: SOLO Público/Interno (lo verifica el pipeline y un test)
+  analytics.v_consumo_mensual:
+    frontera_id: Interno
+    mes: Interno
+    consumo_kwh: Interno
+    horas_con_dato: Interno
+  analytics.v_consumo_horario:
+    frontera_id: Interno
+    ts_local: Interno
+    consumo_kwh: Interno
+    version_lectura: Interno
+    calidad_lectura: Interno
+    unidad_origen: Interno
+  analytics.v_frontera:
+    frontera_id: Interno
+    codigo_sic: Interno
+    cliente_id: Interno
+    mercado: Interno
+    operador_red: Interno
+    nivel_tension: Interno
+    fecha_registro: Interno
+    estado: Interno
+    min_kwh: Interno
+    max_kwh: Interno
+  analytics.v_cliente:
+    cliente_id: Interno
+    ciudad: Interno
+    departamento: Interno
+    pii_en_observaciones: Interno
+  analytics.v_facturacion_mensual:
+    factura_id: Interno
+    periodo: Interno
+    frontera_id: Interno
+    consumo_facturado_kwh: Interno
+    tarifa_cop_kwh: Interno             # agregado por frontera-mes para análisis; sin cliente
+    valor_total_cop: Interno
+    metodo_pago_tipo: Interno
+    nit_coincide_maestro: Interno
+  analytics.v_cuarentena_resumen:
+    origen: Interno
+    archivo_nombre: Interno
+    regla: Interno
+    registros: Interno
+    primero: Interno
+    ultimo: Interno
+  analytics.v_archivos_procesados:
+    nombre: Interno
+    origen: Interno
+    estado: Interno
+    filas_leidas: Interno
+    filas_cargadas: Interno
+    filas_rechazadas: Interno
+    formato_detectado: Interno
+    primera_vez: Interno
+    ultima_vez: Interno

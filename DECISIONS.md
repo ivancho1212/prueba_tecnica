@@ -118,3 +118,54 @@ dos pools y dos formas de parametrizar.
 Código algo más verboso en la ingesta (parsers explícitos) a cambio de control
 total sobre B7 y de un árbol de dependencias pequeño y auditado. `make audit`
 debe quedar en cero antes de cada entrega.
+
+---
+
+## ADR-004 — Modelo por esquemas, hora local sin zona, PII en `bytea` con HMAC para joins
+
+**Estado:** Aceptada
+**Fecha:** 2026-11-11
+
+**Contexto**
+El modelo debe servir a tres cosas a la vez: agregaciones exactas por
+frontera-mes (B), controles verificables por rol y como superusuario (C3, C4,
+C5) y una cuarentena consultable sin exponer PII. Además tiene que absorber
+datos tardíos sin recargar todo (A).
+
+**Opciones consideradas**
+1. Esquema único `public` con tablas planas y PII en claro protegida solo por
+   grants.
+2. Estrella clásica con `timestamptz` en UTC y vistas que conviertan a Bogotá.
+3. Cuatro esquemas por función (`core`, `quarantine`, `audit`, `analytics`),
+   hechos en hora local sin zona, PII cifrada en aplicación (`bytea`) más un
+   HMAC por campo sensible para igualdad/joins, y tabla de control de archivos
+   con hash como zona *raw* lógica.
+
+**Decisión**
+Opción 3. DDL en `sql/` numerado, 100 % idempotente, aplicado por
+`scripts/bootstrap_db.py` en cada `make up`.
+
+**Por qué**
+Los grants por esquema hacen el menor privilegio legible y verificable: el
+analista solo tiene `USAGE` sobre `analytics`, el auditor sobre `audit`. El
+enunciado define "mes" y "hora" en hora local Colombia sin horario de verano,
+así que guardar `timestamp` local evita una conversión en cada consulta y hace
+que `date_trunc('month')` sea inmutable (columna generada `mes`). Guardar UTC
+habría sido más "correcto" en general, pero aquí añade riesgo de error en el
+dato que se factura. La PII en `bytea` cifrado a nivel de aplicación garantiza
+que leer la tabla cruda como superusuario no revela nada: la llave vive fuera
+de la base (ADR-002). El HMAC con llave propia permite comprobar que el NIT de
+la factura coincide con el del maestro sin descifrar ni exponer. La tabla
+`control_archivos` (nombre + hash) es lo que permite que un archivo ya cargado
+no se reescriba y que uno nuevo o corregido entre solo. Se descartó pgcrypto
+porque la llave viajaría en cada sentencia SQL y quedaría en logs/`pg_stat`.
+
+**Consecuencias**
+Igualdad y joins sobre PII solo por HMAC (no hay búsquedas parciales ni
+ordenación por esos campos: aceptable, el análisis no las necesita). El
+superusuario de Postgres sigue pudiendo desactivar el trigger de la bitácora:
+riesgo residual documentado en el threat model, mitigable en producción con un
+rol de aplicación que no sea superusuario y auditoría del motor. La cuarentena
+guarda el payload cifrado cuando la fuente tiene PII, así que depurar un
+rechazo de clientes exige la llave: coste asumido a cambio de no tener PII en
+claro en ninguna tabla.

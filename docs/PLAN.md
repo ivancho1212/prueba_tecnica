@@ -45,22 +45,31 @@ punta a punta con los cuatro meses cargados y el mismo estado en ambas corridas.
 > (`make setup`, `make test`, parsers). `make up`/`run`/`stream` de punta a
 > punta requieren instalar Docker (`sudo apt install docker.io docker-compose-v2`
 > y añadir el usuario al grupo `docker`) o correr en otra máquina.
+> **Alternativa en uso:** `scripts/dev_pg_sin_docker.sh start` levanta un
+> Postgres 16.15 real sin root (binarios Zonky) en `127.0.0.1:8432`; con
+> `PG_PORT=8432` todo lo que es Postgres (bootstrap, run, tests) se prueba aquí.
+> Solo Redpanda/streaming queda pendiente de Docker.
 
 ### 1.2 Modelo de datos y SQL (`sql/`)
-- [ ] Esquemas: `core` (hechos/dimensiones), `quarantine` (rechazos con motivo),
-      `audit` (bitácora), `analytics` (vista del analista).
-- [ ] `core.fact_consumo_horario`: clave natural `(frontera_id, ts_local)`,
-      `version_lectura`, linaje (`archivo_origen`, `hash_archivo`, `fila`).
-- [ ] `core.dim_cliente`: columnas PII cifradas + columnas HMAC para joins.
-- [ ] Tabla de control de archivos procesados (nombre, hash, filas, estado)
-      para idempotencia y datos tardíos.
-- [ ] Roles `ingesta`, `analista`, `auditor` y grants creados aquí (se prueban
-      en 2.4).
+- [x] Esquemas: `core` (hechos/dimensiones), `quarantine` (rechazos con motivo),
+      `audit` (bitácora), `analytics` (vistas del analista). `sql/01_schemas.sql`.
+- [x] `core.fact_consumo_horario`: PK `(frontera_id, ts_local)`, `mes` generado,
+      `version_lectura`, `archivo_nombre` (desempate B3), `archivo_id`, `fila_origen`.
+      CHECK 0 ≤ kwh ≤ 1e6. `sql/10_core.sql`.
+- [x] `core.dim_cliente`: PII en `bytea` `*_cifrado` + `nit_hmac`/`email_hmac`;
+      `observaciones_enmascaradas`. También `fact_facturacion` con PII cifrada.
+- [x] `core.control_archivos` (nombre, hash, formato detectado, filas, estado,
+      corridas) para idempotencia y datos tardíos.
+- [x] Roles `rol_ingesta`/`rol_analista`/`rol_auditor` (`sql/00_roles.sql`, sin
+      secretos: contraseñas por `set_config`) y grants (`sql/90_grants.sql`).
+      **Probados ya** (ver 2.4/2.5) contra Postgres 16.15 local.
 
 ### 1.3 Clasificación viva (C1)
-- [ ] `data_classification.yaml` con cada columna del modelo etiquetada.
-- [ ] Módulo que lo lee y decide qué cifrar, enmascarar y excluir de logs.
-      Todo el pipeline pasa por él.
+- [x] `data_classification.yaml`: 150 columnas en 15 objetos + campos de origen
+      + políticas por nivel.
+- [x] `src/bia/classification.py`: consulta por tabla/columna y por campo de
+      origen; `verificar_contra_db` (information_schema 1:1) y
+      `verificar_vistas_analista` corren en `make up`. Tests offline parsean el DDL.
 
 ### 1.4 Ingesta de consumos (Parte A)
 - [ ] Descubrimiento por glob en `data/consumos/`, orden lexicográfico.
@@ -111,15 +120,17 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
       ni en clientes ni en facturación.
 
 ### 2.4 Menor privilegio (C4)
-- [ ] Vista `analytics.*` sin PII.
-- [ ] `REVOKE ALL ON SCHEMA public FROM PUBLIC` y grants mínimos por esquema.
-- [ ] Tests negativos por rol: ingesta no lee PII; analista no escribe ni lee
-      tablas base; auditor solo lee la bitácora.
+- [x] Vistas `analytics.*` sin PII (`sql/40_analytics.sql`).
+- [x] `REVOKE ALL ON SCHEMA public FROM PUBLIC`, `REVOKE ... ON DATABASE`,
+      grants mínimos por esquema y **por columna** (ingesta no lee `*_cifrado`).
+- [x] Tests negativos por rol en `tests/test_permisos_db.py` (32 casos). Se
+      saltan si no hay base; pasan contra PG 16.15 local.
 
 ### 2.5 Bitácora append-only (C5)
-- [ ] `audit.bitacora_corridas`: quién, qué, cuándo, filas, resultado.
-- [ ] `REVOKE UPDATE, DELETE` para todos los roles incluido el dueño + trigger
-      que aborta ambas operaciones.
+- [x] `audit.bitacora`: quién (db/os/host), componente, etapa, evento, objeto,
+      filas, resultado, duración, detalle jsonb sin PII.
+- [x] `REVOKE UPDATE, DELETE, TRUNCATE` incluido el dueño + triggers que abortan
+      UPDATE/DELETE/TRUNCATE incluso al superusuario (test lo comprueba).
 
 ### 2.6 Secretos y dependencias (C6, C7)
 - [ ] `config/pipeline.yaml` eliminado o sin ningún valor sensible; todo por
@@ -192,4 +203,5 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | Fecha | Hito | Commit |
 |---|---|---|
 | 2026-11-11 | Punto de partida: scaffolding auditado, CLAUDE.md, plan | `b66f2f2`, `5f8126f` |
-| 2026-11-11 | 1.1 Entorno y contrato: setup/up/down/clean, compose endurecido, deps auditadas, ADR-001..003 | (este commit) |
+| 2026-11-11 | 1.1 Entorno y contrato: setup/up/down/clean, compose endurecido, deps auditadas, ADR-001..003 | `3509c47` |
+| 2026-11-11 | 1.2 + 1.3 Modelo SQL, roles/grants, bitácora append-only, vistas, clasificación viva, bootstrap_db, 43 tests | (este commit) |
