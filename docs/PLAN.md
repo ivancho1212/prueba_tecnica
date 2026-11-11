@@ -157,8 +157,11 @@ verificados; los tres roles no pueden hacer nada fuera de su contrato.
 - [x] `pip-audit` limpio; evidencia en `docs/evidencias/` y `SECURITY.md` §7.
 
 ### 2.7 Tests (G)
-- [ ] Parsers de los cuatro formatos, reglas B1–B7, PII, cifrado, permisos.
-- [ ] `make test` en verde.
+- [x] Parsers de los cuatro formatos (`test_consumos_reglas.py`), reglas B1–B7
+      (incl. B6 en `test_facturacion_b6.py` y B7 en `test_eliminatorias_db.py`),
+      PII y cifrado (`test_pii_crypto.py`), clasificación, permisos por rol
+      (33 casos). 69 pruebas recolectadas, 45 funciones.
+- [x] `make test` en verde con y sin base (sin base se saltan las 35 de Postgres).
 
 ---
 
@@ -188,7 +191,7 @@ pasa.
       equivalentes a C4. `terraform validate` pasa.
 
 ### 3.4 Documentación (C8, H)
-- [ ] `THREAT_MODEL.md`: ≥ 8 amenazas STRIDE sobre esta arquitectura, control,
+- [x] `THREAT_MODEL.md`: 14 amenazas STRIDE sobre esta arquitectura, control,
       estado real, Anexo A ISO 27001:2022.
 - [x] `SECURITY.md` con comandos de verificación concretos (ocho secciones de
       la plantilla; cada comando de §8 ejecutado contra la base antes de documentarlo).
@@ -230,4 +233,5 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | B3 revisado: 120 conflictivos (empate de versión), 300 reemplazos por versión como `B3_SUPERADA_POR_VERSION`; ADR-005 actualizado; test B6 sin aserción probabilística; 66 tests | `0ab51f6`, `19da3cc` |
 | 2026-11-11 | Hito 2 (código y tests): facturación gobernada por la clasificación (C1), tests de eliminatorias 1 y 3 con datos reales contra la base, redacción honesta del append-only; 69 tests | `bdd211a`, `d18895e`, `87267cf` |
 | 2026-11-11 | `entrega.yaml`: email y los cuatro objetos reales; `make verificar` exit 0 con la base en 5432 (Postgres local sin Docker, mismo `.env`); `make test` y `make run` x2 en verde. Pendiente: `horas_invertidas` y `no_implementado` al cierre | `bf1967c` |
-| 2026-11-11 | `SECURITY.md` completo con evidencia real (commits, tests, pip-audit, comandos por rol verificados); 2.6 cerrado | (este commit) |
+| 2026-11-11 | `SECURITY.md` completo con evidencia real (commits, tests, pip-audit, comandos por rol verificados); 2.6 cerrado | `5ae4071` |
+| 2026-11-11 | `THREAT_MODEL.md`: DFD con 5 fronteras, 11 activos, 14 amenazas STRIDE con evidencia y estado real (Hito 3 marcado como no implementado), 8 riesgos aceptados; 2.7 cerrado | (este commit) |
