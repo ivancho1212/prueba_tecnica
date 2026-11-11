@@ -1,7 +1,8 @@
-"""Las dos eliminatorias que se comprueban contra la base, con los datos reales
-del paquete: (3) la entrada hostil de clientes.csv es dato, no código, y la
-tabla de consumos no cambia; (1) la bitácora que lee el auditor no contiene PII.
-Se saltan sin Postgres o sin data/ (el evaluador tiene ambas)."""
+"""Eliminatorias comprobadas con los datos reales del paquete:
+(3) la entrada hostil de clientes.csv es dato, no código, y la tabla de
+consumos no cambia; (1) ni la bitácora que lee el auditor, ni logs/, ni out/
+contienen PII. Las de base se saltan sin Postgres; las de artefactos, si aún
+no se corrió make run (el evaluador corre make test después)."""
 from __future__ import annotations
 
 import csv
@@ -100,3 +101,37 @@ def test_eliminatoria_1_bitacora_del_auditor_sin_pii(conn_auditor):
         pytest.skip("bitácora vacía: correr make run antes")
     texto = "\n".join(" ".join(str(c) for c in f if c is not None) for f in filas)
     _assert_sin_pii(texto, pii, "audit.bitacora")
+
+
+def test_eliminatoria_1_logs_y_out_sin_pii():
+    """Lo que el evaluador revisa con regex tras make run / make stream. No
+    necesita base: se salta si todavía no hay artefactos."""
+    pii = _pii_real()
+    rutas = [RAIZ / "logs" / "pipeline.log", *sorted((RAIZ / "out").glob("*.json")),
+             *sorted((RAIZ / "out").glob("*.csv"))]
+    rutas = [r for r in rutas if r.exists()]
+    if not rutas:
+        pytest.skip("sin logs/ ni out/: correr make run antes")
+    for r in rutas:
+        _assert_sin_pii(r.read_text(encoding="utf-8"), pii, str(r.relative_to(RAIZ)))
+    log = RAIZ / "logs" / "pipeline.log"
+    if log.exists():
+        import json
+        for n, linea in enumerate(log.read_text(encoding="utf-8").splitlines(), 1):
+            assert isinstance(json.loads(linea), dict), f"logs/pipeline.log:{n} no es un objeto JSON"
+
+
+def test_metrics_tiene_los_campos_minimos():
+    """Parte E: filas leídas, cargadas, rechazadas por motivo, duración por
+    etapa y timestamp de la corrida."""
+    ruta = RAIZ / "out" / "metrics.json"
+    if not ruta.exists():
+        pytest.skip("sin out/metrics.json: correr make run antes")
+    import json
+    m = json.loads(ruta.read_text(encoding="utf-8"))
+    if "filas_leidas" not in m:
+        pytest.skip("metrics.json sin sección batch (solo corrió make stream)")
+    for llave in ("filas_leidas", "filas_cargadas", "filas_rechazadas", "rechazos_por_motivo",
+                  "duracion_ms_por_etapa", "inicio"):
+        assert llave in m, f"metrics.json sin {llave}"
+    assert m["duracion_ms_por_etapa"] and m["rechazos_por_motivo"]

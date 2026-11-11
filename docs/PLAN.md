@@ -186,7 +186,9 @@ pasa.
       campos `en_logs: false` de la clasificación + regex de PII.
 - [x] `out/metrics.json`: filas, rechazos por motivo, duración por etapa,
       timestamps, formato detectado por archivo.
-- [ ] Test: regex de correos/celulares/cédulas sobre `logs/` y `out/` → 0.
+- [x] Test: PII real del maestro + regex de correos/celulares/cédulas sobre
+      `logs/` y `out/` → 0; cada línea del log es JSON; `metrics.json` con los
+      campos mínimos de la Parte E (`tests/test_eliminatorias_db.py`).
 
 ### 3.3 Terraform (Parte F) — primero en recortarse
 - [ ] S3 cifrado + versionado, llave KMS con política, 3 roles IAM
