@@ -1,39 +1,29 @@
 # Pipeline de consumos de energía — Bia Energy
 
-Solución a la prueba técnica *Data Platform & Security Engineer* (el enunciado
-original está en `docs/ENUNCIADO.md`). Pipeline batch en Python + PostgreSQL
-que ingiere consumos horarios sucios en cuatro formatos, aplica las reglas de
-calidad B1–B7, protege la PII (cifrado en reposo, seudónimos HMAC,
-enmascarado, mínimo privilegio, bitácora append-only) y un consumidor de
-streaming sobre Redpanda que emite alertas.
+Solución a la prueba técnica *Data Platform & Security Engineer*. El enunciado original está en `docs/ENUNCIADO.md`.
+
+Pipeline de ingeniería de datos en Python + PostgreSQL que ingiere consumos horarios con datos intencionalmente sucios en cuatro formatos, aplica las reglas de calidad B1–B7, protege la PII y procesa un flujo de mediciones sobre Redpanda para generar alertas.
 
 ## Cómo correrlo
 
-Requisitos: Docker con Compose v2, GNU make, Python 3.10 o superior, `curl`.
+### Requisitos
+
+- Docker con Compose v2
+- GNU Make
+- Python 3.10 o superior
+- `curl`
+
+### Entorno Windows
+
+El `Makefile` está diseñado para un entorno Unix/Linux porque utiliza Bash y la estructura `.venv/bin/python`.
+
+En Windows se puede ejecutar mediante **WSL2 + Docker Desktop**, con la integración de Docker Desktop con WSL2 habilitada.
+
+No es necesario modificar el proyecto ni el `Makefile`.
+
+### Contrato de ejecución
 
 ```bash
-make setup     # venv, dependencias pineadas, .env con llaves aleatorias por máquina
-make up        # Postgres 16 + Redpanda, espera healthchecks, aplica sql/ y verifica la clasificación
-make run       # batch completo (~1 s); idempotente: correrlo dos veces deja el mismo estado
-make stream    # crea el tópico, publica con tools/producer.py, consume y termina solo (~2-5 s)
-make test      # 85 pruebas; las de base de datos se saltan si no hay Postgres
-make verificar # entrega.yaml describe lo que levantó make up
-make down
-```
-
-### Entorno de ejecución
-
-El contrato de la prueba se ejecuta mediante `make` y está diseñado para un entorno Unix/Linux (`bash` y estructura de entorno virtual `.venv/bin/python`).
-
-- **Linux:** ejecutar directamente desde Bash.
-- **macOS:** ejecutar desde Terminal.
-- **Windows:** utilizar **WSL2** (por ejemplo, Ubuntu) con **Docker Desktop** y la integración de Docker con WSL2 habilitada.
-
-En Windows no se requiere modificar el proyecto ni el `Makefile`; los comandos `make` se ejecutan dentro de WSL2.
-
-Contrato de ejecución:
-
-```text
 make setup
 make up
 make run
@@ -43,110 +33,228 @@ make test
 make down
 ```
 
-La validación final de este contrato fue realizada en Windows mediante WSL2 + Docker Desktop.
+Descripción de los principales targets:
 
-Otros targets: `make audit` (pip-audit), `make clean` (borra `out/`, `logs/` y
-volúmenes; conserva `.env` porque contiene las llaves).
+```text
+make setup      Crea el entorno virtual, instala dependencias y genera .env con llaves aleatorias por máquina.
+make up         Levanta PostgreSQL 16 + Redpanda, espera healthchecks, aplica SQL y verifica la clasificación.
+make run        Ejecuta el pipeline batch completo. Es idempotente.
+make stream     Publica y consume las mediciones de Redpanda hasta el offset final y genera alertas.
+make test       Ejecuta la suite de pruebas.
+make verificar  Comprueba entrega.yaml, conexiones, objetos y artefactos de salida.
+make down       Detiene y elimina los contenedores y la red del proyecto.
+make audit      Ejecuta pip-audit.
+make clean      Limpia salidas, logs y volúmenes conservando .env.
+```
 
-**Salidas**: `out/consumo_mensual.csv`, `out/dq_report.json`,
-`out/metrics.json` (con una sección `stream` tras `make stream`),
-`out/alertas.json` y `logs/pipeline.log` (JSON, una línea por evento, sin PII).
+La validación final del contrato se realizó en Windows mediante WSL2 + Docker Desktop:
 
-**Resultados con los datos del paquete** (sirven como prueba de regresión):
+```text
+setup → up → run → run → stream → test → down
+```
 
-| `dq_report.json` | Valor | | Otros | Valor |
-|---|---:|---|---|---:|
-| filas_leidas | 115.340 | | filas cargadas | 114.545 |
-| duplicados_exactos | 180 | | filas en `consumo_mensual.csv` | 160 |
-| duplicados_conflictivos | 120 | | facturas cargadas | 160 |
-| registros_negativos / nulos / outlier | 90 / 60 / 45 | | `CONSUMO_FUERA_DE_BANDA` | 22 |
-| registros_mwh_convertidos | 400 | | `FRONTERA_SIN_REPORTE` | 6 |
-| correcciones_tardias_aplicadas | 300 | | `LECTURA_RETROACTIVA` | 5 |
-| horas_sin_lectura_valida_total | 655 | | | |
-| fronteras_huerfanas_facturacion | 12 | | | |
-| clientes_con_pii_en_texto_libre | 25 | | | |
+Después se volvió a levantar la infraestructura y `make verificar` confirmó que el evaluador puede conectarse y encontrar los objetos y artefactos declarados.
 
-Validación externa: el `consumo_facturado_kwh` de las 160 facturas coincide
-con `consumo_mensual.csv` (diferencia máxima 0,005 kWh, por redondeo).
+## Salidas
+
+El pipeline genera:
+
+- `out/consumo_mensual.csv`
+- `out/dq_report.json`
+- `out/metrics.json`
+- `out/alertas.json`
+- `logs/pipeline.log`
+
+Los logs se escriben en JSON, una línea por evento, y los controles de PII evitan que los valores reales del maestro aparezcan en `logs/` u `out/`.
+
+## Resultados con los datos del paquete
+
+Estos valores sirven como referencia de regresión:
+
+| `dq_report.json` | Valor | Otros | Valor |
+|---|---:|---|---:|
+| filas_leidas | 115.340 | filas cargadas | 114.545 |
+| duplicados_exactos | 180 | filas en `consumo_mensual.csv` | 160 |
+| duplicados_conflictivos | 120 | facturas cargadas | 160 |
+| registros_negativos / nulos / outlier | 90 / 60 / 45 | `CONSUMO_FUERA_DE_BANDA` | 22 |
+| registros_mwh_convertidos | 400 | `FRONTERA_SIN_REPORTE` | 6 |
+| correcciones_tardias_aplicadas | 300 | `LECTURA_RETROACTIVA` | 5 |
+| horas_sin_lectura_valida_total | 655 | alertas totales de streaming | 33 |
+| fronteras_huerfanas_facturacion | 12 |  | |
+| clientes_con_pii_en_texto_libre | 25 |  | |
+
+La ejecución de streaming procesó:
+
+- 3.795 eventos publicados.
+- 3.795 eventos consumidos.
+- 0 eventos malformados.
+- 0 duplicados.
+- 0 eventos fuera de la grilla.
+- 3.795 eventos procesados.
+- 33 alertas generadas.
+
+La segunda ejecución de `make run` mantuvo los mismos resultados y estado final, verificando la idempotencia del procesamiento.
+
+El `consumo_facturado_kwh` de las 160 facturas coincide con `consumo_mensual.csv`, con una diferencia máxima de 0,005 kWh atribuible al redondeo.
 
 ## Qué hice
 
+```text
+data/ (inmutable) ──► src/bia/pipeline.py ──► PostgreSQL ──► analytics.v_*
+   clientes.csv (PII,     maestros → consumos       core.*        (rol_analista)
+   entradas hostiles)     → facturación → reportes  quarantine.*
+   consumos/*.csv (4 fmt)  como rol_ingesta          audit.bitacora
+   facturacion/*.json                              └─► out/ y logs/
+   eventos/*.ndjson ──► tools/producer.py ──► Redpanda ──► src/bia/stream
+                                                               └─► alertas
 ```
-data/ (inmutable) ──► src/bia/pipeline.py ──► PostgreSQL ──► analytics.v_* (rol_analista)
-   clientes.csv (PII,     maestros → consumos       core.*        (cifrado AES-GCM + HMAC)
-   entradas hostiles)     → facturación → reportes  quarantine.*  (rechazos con motivo)
-   consumos/*.csv (4 fmt)  como rol_ingesta          audit.bitacora (append-only, rol_auditor)
-   facturacion/*.json                            └─► out/ y logs/ (sin PII)
-   eventos/*.ndjson ──► tools/producer.py ──► Redpanda ──► src/bia/stream ──► out/alertas.json
+
+### Parte A · Ingesta e idempotencia
+
+- Detección del formato por archivo: separador, encoding, columnas, decimal, zona horaria y unidad.
+- Cada archivo se procesa dentro de una transacción.
+- `core.control_archivos` registra hash y estado de procesamiento.
+- Los archivos ya cargados no se vuelven a ingerir.
+- Las correcciones de abril reemplazan las lecturas anteriores mediante la clave natural y la versión.
+- Las 300 correcciones tardías se distinguen de los 120 duplicados conflictivos de misma versión.
+- Los errores estructurales rechazan el archivo cuando superan el umbral definido; los errores de fila se conservan en cuarentena.
+- Los datos inválidos no destruyen los datos previamente cargados.
+
+### Parte B · Calidad
+
+Las reglas B1–B7 están implementadas en:
+
+- `src/bia/ingesta/consumos.py`
+- `src/bia/ingesta/facturacion.py`
+- `src/bia/ingesta/maestros.py`
+
+Se implementan, entre otros:
+
+- normalización de formatos;
+- conversión MWh → kWh;
+- detección de negativos, nulos y outliers;
+- deduplicación;
+- aplicación de correcciones tardías;
+- detección de horas sin lectura válida;
+- identificación de fronteras huérfanas en facturación;
+- cuarentena con motivo y trazabilidad.
+
+### Parte C · Seguridad
+
+`data_classification.yaml` gobierna la clasificación de los campos y se utiliza durante la ejecución del pipeline.
+
+El arranque valida que la clasificación cubra las columnas esperadas.
+
+La protección de PII incluye:
+
+- AES-256-GCM para datos cifrados.
+- HMAC determinístico para búsquedas y relaciones que necesitan igualdad.
+- Enmascaramiento de PII encontrada en texto libre.
+- Tres roles con privilegios diferenciados.
+- Vistas analíticas sin exposición innecesaria de PII.
+- Bitácora append-only mediante privilegios y triggers.
+- Eliminación de credenciales heredadas del código y configuración versionada.
+- Validación de dependencias mediante `pip-audit`.
+
+Los detalles de los controles y sus evidencias están en `SECURITY.md`.
+
+El modelo de amenazas y los riesgos residuales están documentados en `THREAT_MODEL.md`.
+
+### Parte D · Streaming
+
+Se implementó un consumidor de mediciones sobre Redpanda.
+
+El flujo:
+
+```text
+eventos NDJSON
+      ↓
+tools/producer.py
+      ↓
+Redpanda / mediciones.raw
+      ↓
+src/bia/stream/consumidor.py
+      ↓
+detector de reglas por frontera
+      ↓
+out/alertas.json
 ```
 
-- **Parte A · Ingesta e idempotencia.** El formato se detecta por archivo
-  (separador, encoding, columnas, coma decimal, UTC, unidad), no por nombre.
-  Cada archivo es una transacción; `core.control_archivos` registra su hash y
-  no se recarga lo ya cargado. La corrección de abril se absorbe por upsert
-  sobre la clave natural, sin recargar. Un mes nuevo se procesa por glob; un
-  archivo truncado o binario va a cuarentena sin tocar los meses cargados.
-  ADR-005.
-- **Parte B · Calidad.** B1–B7 exactas en `src/bia/ingesta/consumos.py`,
-  `facturacion.py` y `maestros.py`. Las 300 lecturas que la corrección
-  reemplaza cuentan como correcciones, no como conflictivas (ADR-005).
-- **Parte C · Seguridad.** `data_classification.yaml` gobierna qué se cifra,
-  qué se loguea y qué ve el analista, y `make up` falla si el modelo y el YAML
-  no coinciden. Cifrado AES-256-GCM a nivel de aplicación con llaves fuera de
-  la base, también para la PII duplicada en facturación. Tres roles con grants
-  por columna. Bitácora append-only por privilegios y triggers. Secretos
-  heredados eliminados y dependencias con CVE sustituidas. Detalle y comandos
-  para verificar cada control: `SECURITY.md`. Amenazas: `THREAT_MODEL.md`.
-- **Parte D · Streaming.** Detector puro con estado por frontera y consumidor
-  que lee hasta el offset final y termina solo; deduplica por `evento_id`.
-  ADR-006.
-- **Parte E · Observabilidad.** Logger JSON con doble filtro de PII,
-  `metrics.json` con duración por etapa y rechazos por motivo, y un test que
-  busca la PII real del maestro en `logs/` y `out/`. Operación: `RUNBOOK.md`.
-- **Parte F · IaC.** `infra/` con S3, KMS e IAM equivalentes a los roles
-  locales; pasa `terraform validate`. No se despliega.
+El consumidor:
 
-## Qué no hice o tiene límites
+- procesa hasta el offset final;
+- termina cuando alcanza ese offset;
+- deduplica mediante `evento_id`;
+- mantiene estado por frontera;
+- detecta lecturas fuera de banda;
+- detecta fronteras sin reporte;
+- detecta lecturas retroactivas.
 
-Declarado también en `entrega.yaml → no_implementado` y en los documentos
-citados.
+### Parte E · Observabilidad
 
-- **Docker no estaba disponible en la máquina de desarrollo.** Durante el
-  desarrollo probé con un PostgreSQL 16 sin root
-  (`scripts/dev_pg_sin_docker.sh`) y con Apache Kafka 4.3.2 en lugar de
-  Redpanda. El contrato completo con `docker-compose.yml` (Postgres y
-  Redpanda reales) se validó al final en Windows con WSL2 y Docker Desktop
-  (ver "Entorno de ejecución").
-- **`fact_facturacion.nit_coincide_maestro` existe pero no se calcula**: la
-  estructura para cruzar por HMAC está, la lógica no.
-- **Límites de seguridad aceptados**: un superusuario de PostgreSQL puede
-  desactivar los triggers de la bitácora; la llave de cifrado vive en `.env`
-  en el mismo host; Redpanda sin autenticación ni TLS en local. Razones y
-  mitigaciones de producción en `THREAT_MODEL.md` §4 y §5.
-- **El lector de maestros** (`src/bia/ingesta/maestros.py`) todavía corta el
-  archivo ante un error de `csv` en Python < 3.11 en lugar de seguir fila a
-  fila como ya hace el de consumos. Con los datos entregados no se ejerce.
-- **`infra/`** no modela red, cómputo, RDS, MSK ni CloudTrail (`infra/README.md`).
+- Logger estructurado en JSON.
+- Duración y métricas por etapa.
+- Conteo de rechazos por motivo.
+- `metrics.json` incorpora resultados del procesamiento batch y streaming.
+- Test específico contra los valores reales de PII del maestro para comprobar que no lleguen a `logs/` ni `out/`.
+- `RUNBOOK.md` documenta operación, diagnóstico y recuperación.
+
+### Parte F · Infraestructura como código
+
+`infra/` contiene Terraform de referencia para:
+
+- S3
+- KMS
+- IAM
+
+La configuración pasa `terraform validate`.
+
+No se pretende desplegar esta infraestructura durante la prueba; funciona como referencia de una evolución hacia un entorno cloud.
+
+## Decisiones y límites conocidos
+
+Las decisiones técnicas importantes están documentadas en `DECISIONS.md`.
+
+Los límites deliberados o no implementados están declarados también en:
+
+- `entrega.yaml → no_implementado`
+- `SECURITY.md`
+- `THREAT_MODEL.md`
+- `RUNBOOK.md`
+
+Entre ellos:
+
+- `fact_facturacion.nit_coincide_maestro` existe como campo, pero no se calcula porque el alcance de B6 se resolvió mediante la relación por frontera y el enunciado no exige ese cruce adicional.
+- Un superusuario de PostgreSQL puede deshabilitar administrativamente los triggers de la bitácora. La garantía append-only se plantea para sesiones normales y el límite está documentado como riesgo residual.
+- La llave de cifrado se mantiene en `.env` en el mismo host en este entorno de prueba. En producción se recomienda un KMS/secret manager.
+- Redpanda se ejecuta sin autenticación ni TLS en el entorno local de la prueba. En producción se recomienda SASL/TLS y ACLs.
+- El lector de maestros mantiene una rama de manejo de errores estructurales de `csv` específica; los datos entregados no ejercen esa rama.
+- `infra/` no modela toda una plataforma productiva: no incluye red, cómputo, RDS, MSK ni CloudTrail.
 
 ## Estructura
 
 | Ruta | Contenido |
 |---|---|
-| `src/bia/` | Pipeline: `pipeline.py` (orquestador), `ingesta/`, `stream/`, `crypto.py`, `pii.py`, `classification.py`, `logging_json.py` |
-| `sql/` | DDL numerado e idempotente: roles, esquemas, modelo, cuarentena, bitácora, vistas, grants |
-| `tests/` | Parsers, reglas B y de streaming, PII y cifrado, permisos por rol, eliminatorias con datos reales |
-| `scripts/` | `bootstrap_env.py` (genera `.env`), `bootstrap_db.py` (aplica `sql/`), `dev_pg_sin_docker.sh` |
+| `src/bia/` | Pipeline, ingesta, streaming, cifrado, PII, clasificación y logging |
+| `sql/` | Roles, esquemas, modelo, cuarentena, auditoría, vistas y grants |
+| `tests/` | Parsers, reglas B, streaming, PII, cifrado, permisos y pruebas eliminatorias |
+| `scripts/` | Bootstrap de entorno y base de datos |
 | `infra/` | Terraform de referencia |
-| `tools/` | `producer.py` y `verificar_entrega.py`, provistos por el enunciado, sin cambios |
-| `docs/` | `ENUNCIADO.md`, `PLAN.md` (plan y registro de avance), `evidencias/` (pip-audit) |
+| `tools/` | Producer y verificador de entrega |
+| `docs/` | Enunciado, plan y evidencias |
 
-Documentos: `DECISIONS.md` (6 ADRs), `SECURITY.md`, `THREAT_MODEL.md`,
-`RUNBOOK.md`, `AI_USAGE.md`, `data_classification.yaml`.
+Documentos principales:
+
+- `DECISIONS.md`
+- `SECURITY.md`
+- `THREAT_MODEL.md`
+- `RUNBOOK.md`
+- `AI_USAGE.md`
+- `data_classification.yaml`
+- `entrega.yaml`
 
 ## Desarrollo sin Docker
 
-```bash
-scripts/dev_pg_sin_docker.sh start                    # Postgres 16 sin root en 127.0.0.1:8432
-PG_PORT=8432 .venv/bin/python scripts/bootstrap_db.py
-PG_PORT=8432 make run && PG_PORT=8432 make test
-```
+Para entornos donde Docker no esté disponible existe un flujo alternativo documentado mediante PostgreSQL local y un broker Kafka compatible.
+
+Ese flujo se utiliza únicamente como alternativa de desarrollo. El **contrato oficial de entrega fue validado con Docker + Redpanda** mediante WSL2 + Docker Desktop.
