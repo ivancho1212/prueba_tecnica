@@ -21,6 +21,30 @@ make verificar # entrega.yaml describe lo que levantó make up
 make down
 ```
 
+### Entorno de ejecución
+
+El contrato de la prueba se ejecuta mediante `make` y está diseñado para un entorno Unix/Linux (`bash` y estructura de entorno virtual `.venv/bin/python`).
+
+- **Linux:** ejecutar directamente desde Bash.
+- **macOS:** ejecutar desde Terminal.
+- **Windows:** utilizar **WSL2** (por ejemplo, Ubuntu) con **Docker Desktop** y la integración de Docker con WSL2 habilitada.
+
+En Windows no se requiere modificar el proyecto ni el `Makefile`; los comandos `make` se ejecutan dentro de WSL2.
+
+Contrato de ejecución:
+
+```text
+make setup
+make up
+make run
+make run
+make stream
+make test
+make down
+```
+
+La validación final de este contrato fue realizada en Windows mediante WSL2 + Docker Desktop.
+
 Otros targets: `make audit` (pip-audit), `make clean` (borra `out/`, `logs/` y
 volúmenes; conserva `.env` porque contiene las llaves).
 
@@ -87,12 +111,12 @@ data/ (inmutable) ──► src/bia/pipeline.py ──► PostgreSQL ──► a
 Declarado también en `entrega.yaml → no_implementado` y en los documentos
 citados.
 
-- **Docker no estaba disponible en la máquina de desarrollo.** Probé con un
-  PostgreSQL 16 sin root (`scripts/dev_pg_sin_docker.sh`) y con Apache Kafka
-  4.3.2 en lugar de Redpanda. `setup`, `run`, `stream`, `test` y `verificar`
-  se corrieron contra esos sustitutos; `make up` y `make down` dependen de
-  `docker-compose.yml`, que no se ejecutó aquí. Hay que correr el contrato
-  completo en una máquina con Docker antes de entregar.
+- **Docker no estaba disponible en la máquina de desarrollo.** Durante el
+  desarrollo probé con un PostgreSQL 16 sin root
+  (`scripts/dev_pg_sin_docker.sh`) y con Apache Kafka 4.3.2 en lugar de
+  Redpanda. El contrato completo con `docker-compose.yml` (Postgres y
+  Redpanda reales) se validó al final en Windows con WSL2 y Docker Desktop
+  (ver "Entorno de ejecución").
 - **`fact_facturacion.nit_coincide_maestro` existe pero no se calcula**: la
   estructura para cruzar por HMAC está, la lógica no.
 - **Límites de seguridad aceptados**: un superusuario de PostgreSQL puede
