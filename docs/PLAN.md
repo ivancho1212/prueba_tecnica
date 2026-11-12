@@ -205,7 +205,7 @@ pasa.
       modelo y cifrado, ingesta/duplicados/idempotencia, streaming).
 - [x] `RUNBOOK.md`: operación normal, señales, cuatro procedimientos con
       consultas reales (verificadas contra la base) y escalamiento.
-- [ ] `AI_USAGE.md`: prompts reales, qué se cambió, error concreto de la IA
+- [x] `AI_USAGE.md`: prompts reales, qué se cambió, error concreto de la IA
       con archivo y línea.
 - [x] `README.md` propio (cómo correrlo, qué se hizo, qué no); enunciado movido
       a `docs/ENUNCIADO.md` con `git mv`.

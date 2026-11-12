@@ -49,4 +49,11 @@ objetos:
 
 # Opcional: marca en true lo que NO alcanzaste a hacer. Ser explicito sobre
 # lo no hecho suma; que el evaluador lo descubra solo, resta.
-no_implementado: []
+no_implementado:
+  - "make up y make down no se ejecutaron en la maquina de desarrollo (sin Docker): setup, run, stream, test y verificar se probaron contra PostgreSQL 16 sin root y Apache Kafka 4.3.2 en lugar de Redpanda"
+  - "fact_facturacion.nit_coincide_maestro: la columna existe pero no se calcula (queda NULL)"
+  - "Redpanda sin autenticacion SASL ni TLS en local (THREAT_MODEL.md T12)"
+  - "Bitacora append-only: un superusuario de PostgreSQL puede desactivar los triggers (riesgo aceptado, SECURITY.md 6 y THREAT_MODEL.md T7)"
+  - "Llaves de cifrado en .env en el mismo host, sin gestor de secretos ni KMS real (riesgo aceptado, THREAT_MODEL.md T3)"
+  - "Lector de maestros: ante un error de csv en Python < 3.11 corta el archivo en vez de seguir fila a fila (no se ejerce con los datos entregados)"
+  - "infra/ solo pasa terraform validate; no se despliega y no modela red, computo, RDS, MSK ni CloudTrail"
