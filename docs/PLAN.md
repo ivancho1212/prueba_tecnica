@@ -249,4 +249,4 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | 3.3 Terraform de referencia en `infra/` (S3, KMS, IAM); `fmt` y `validate` pasan | `15c109a` |
 | 2026-11-11 | 3.4 `RUNBOOK.md`, `README.md` propio (enunciado a `docs/ENUNCIADO.md`), fix `Z` en streaming para Python < 3.11 | `298bbbf`, `4161339`, `4e0b2f6` |
 | 2026-11-12 | 3.4 `AI_USAGE.md`; 3.5 `entrega.yaml → no_implementado` (7 entradas). Pendiente del autor: zip | `68a9c90`, `866654c` |
-| 2026-11-12 | 3.5 Contrato completo validado por el autor en Windows con WSL2 + Docker Desktop y `make verificar` en verde; README final | ver commit de este cambio |
+| 2026-11-12 | 3.5 Contrato completo validado por el autor en Windows con WSL2 + Docker Desktop y `make verificar` en verde; README final | `208cd2d` |
