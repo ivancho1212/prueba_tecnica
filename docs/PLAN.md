@@ -248,4 +248,4 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | 3.2 Observabilidad: test de PII real en `logs/` y `out/`, campos mínimos de `metrics.json` | `f83c8ab` |
 | 2026-11-11 | 3.3 Terraform de referencia en `infra/` (S3, KMS, IAM); `fmt` y `validate` pasan | `15c109a` |
 | 2026-11-11 | 3.4 `RUNBOOK.md`, `README.md` propio (enunciado a `docs/ENUNCIADO.md`), fix `Z` en streaming para Python < 3.11 | `298bbbf`, `4161339`, `4e0b2f6` |
-| 2026-11-12 | 3.4 `AI_USAGE.md`; 3.5 `entrega.yaml → no_implementado` (7 entradas). Pendiente del autor: `horas_invertidas`, contrato completo con Docker, zip | `68a9c90`, `866654c` |
+| 2026-11-12 | 3.4 `AI_USAGE.md`; 3.5 `entrega.yaml → no_implementado` (7 entradas). Pendiente del autor: contrato completo con Docker, zip | `68a9c90`, `866654c` |

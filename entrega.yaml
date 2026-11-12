@@ -13,7 +13,7 @@
 candidato:
   nombre_completo: "Iván Herrera"
   email: "helpme.bog.col@gmail.com"
-  horas_invertidas: 0          # se honesto, no afecta la nota
+  horas_invertidas: 18         # se honesto, no afecta la nota
 
 # Las credenciales de abajo son EFIMERAS y SOLO para evaluacion local.
 # Deben ser las mismas que crea tu 'make up'.
