@@ -245,3 +245,7 @@ formatos exactos de salida. Lo recortado se declara explícitamente.
 | 2026-11-11 | `THREAT_MODEL.md`: DFD con 5 fronteras, 11 activos, 14 amenazas STRIDE con evidencia y estado real (Hito 3 marcado como no implementado), 8 riesgos aceptados; 2.7 cerrado | `b3606f3` |
 | 2026-11-11 | Portabilidad Windows / Python < 3.11 (encoding en test, NUL como `FILA_CORRUPTA`) | `4656c74` |
 | 2026-11-11 | 3.1 Streaming: detector puro + consumidor Kafka, 33 alertas idénticas entre corridas, ADR-006, 14 tests (83 en total) | `9b3949d`, `1d2a71b` |
+| 2026-11-11 | 3.2 Observabilidad: test de PII real en `logs/` y `out/`, campos mínimos de `metrics.json` | `f83c8ab` |
+| 2026-11-11 | 3.3 Terraform de referencia en `infra/` (S3, KMS, IAM); `fmt` y `validate` pasan | `15c109a` |
+| 2026-11-11 | 3.4 `RUNBOOK.md`, `README.md` propio (enunciado a `docs/ENUNCIADO.md`), fix `Z` en streaming para Python < 3.11 | `298bbbf`, `4161339`, `4e0b2f6` |
+| 2026-11-12 | 3.4 `AI_USAGE.md`; 3.5 `entrega.yaml → no_implementado` (7 entradas). Pendiente del autor: `horas_invertidas`, contrato completo con Docker, zip | `68a9c90`, `866654c` |
